@@ -98,6 +98,14 @@
           </div>
         </el-card>
 
+        <!-- 推诿复核证据包：井盖编号/地下管线图/最近施工许可/历史维修记录 -->
+        <EvidencePanel v-if="d.evidence?.profile" :ev="d.evidence" />
+
+        <!-- 联合现场复核 -->
+        <JointReviewPanel :incident-id="d.incident.id" :owner-status="d.incident.ownerStatus"
+                          :reviews="d.jointReviews || []" :role="role" :current-user-id="auth.user?.id"
+                          @refresh="load" />
+
         <!-- 认领记录 -->
         <el-card v-if="d.claims?.length" class="page-card">
           <template #header><b>权属认领记录</b></template>
@@ -217,8 +225,24 @@
 
       <!-- 右侧：操作面板 + 时间线 -->
       <el-col :xs="24" :md="9">
-        <el-card v-if="actions.length" class="page-card">
+        <el-card v-if="actions.length
+          || (['JOINT_REVIEW', 'ESCALATED'].includes(inc.ownerStatus) && role === 'OWNER_UNIT')
+          || (role === 'CITY_COORDINATOR' && inc.ownerStatus === 'ESCALATED')" class="page-card">
           <template #header><b>可执行操作</b></template>
+
+          <!-- 联合复核中/市级协调池：提示权属单位在复核记录上签字 -->
+          <div v-if="['JOINT_REVIEW', 'ESCALATED'].includes(inc.ownerStatus) && role === 'OWNER_UNIT'">
+            <el-alert type="error" :closable="false" class="mb16"
+                      :title="inc.ownerStatus === 'JOINT_REVIEW'
+                        ? '该事件正在联合现场复核，请在下方《联合现场复核》卡片中完成代表签字或拒签（须理由+证据）'
+                        : '该事件已进入市级协调池，请关注市级协调人员的强制认领决定'" />
+          </div>
+
+          <!-- 市级协调人员入口提示 -->
+          <div v-if="role === 'CITY_COORDINATOR' && inc.ownerStatus === 'ESCALATED'">
+            <el-alert type="error" :closable="false" class="mb16"
+                      title="事件在市级协调池中：请审阅拒签理由与证据，在下方卡片中决定强制认领，并可批准应急基金垫付" />
+          </div>
 
           <!-- 街道：应急派单 -->
           <div v-if="actions.includes('dispatch')" class="mb16">
@@ -394,6 +418,8 @@ import {
   INCIDENT_STATUS, EMERGENCY_STATUS, OWNER_STATUS, REPAIR_STATUS, COMP_STATUS,
   COST_STATUS, RESPONSIBILITY, dangerType, fmtTime, money
 } from '../utils/format'
+import EvidencePanel from '../components/EvidencePanel.vue'
+import JointReviewPanel from '../components/JointReviewPanel.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -427,7 +453,7 @@ const actions = computed(() => {
     if (['INVESTIGATING', 'PENDING'].includes(i.ownerStatus)) list.push('investigate')
   }
   if (role.value === 'OWNER_UNIT') {
-    if (i.ownerStatus !== 'CONFIRMED') list.push('claim')
+    if (['UNCONFIRMED', 'INVESTIGATING', 'PENDING'].includes(i.ownerStatus)) list.push('claim')
     if (i.ownerStatus === 'CONFIRMED' && i.ownerId === auth.user.id && !d.value.repairOrder
         && i.status === 'OWNER_CONFIRMED') list.push('assign')
   }
@@ -460,6 +486,21 @@ const timeline = computed(() => {
   t.push({ label: inv ? `权属排查：${inv.investigation.conclusion === 'CONFIRMED' ? '确认权属' : '责任待定'}` : '权属排查', time: inv ? fmtTime(inv.investigation.createdAt) : '待排查', done: !!inv, type: inv ? 'primary' : 'info' })
   const cl = d.value.claims?.[0]
   t.push({ label: cl ? `权属确认：${cl.ownerOrg}（${cl.claim.claimType}）` : '权属确认', time: cl ? fmtTime(cl.claim.createdAt) : '待确认', done: !!cl, type: cl ? 'success' : 'info' })
+  const rv = d.value.jointReviews?.[0]
+  if (rv) {
+    const labelMap = {
+      INITIATED: '联合现场复核进行中（待各方代表签字）',
+      CONCLUDED: `联合复核确认：${rv.confirmedOwnerOrg || ''}`,
+      ESCALATED: '复核无法确认，已进入市级协调池（应急基金垫付）',
+      FORCED: `市级协调强制认领：${rv.confirmedOwnerOrg || ''}`
+    }
+    t.push({
+      label: labelMap[rv.review.status] || '联合现场复核',
+      time: rv.review.concludedAt ? fmtTime(rv.review.concludedAt) : fmtTime(rv.review.createdAt),
+      done: ['CONCLUDED', 'FORCED'].includes(rv.review.status),
+      type: rv.review.status === 'ESCALATED' ? 'danger' : 'warning'
+    })
+  }
   t.push({ label: o ? `派发维修工单（${d.value.repairTeamName}）` : '派发维修工单', time: o ? fmtTime(o.assignedAt) : '待派单', done: !!o, type: o ? 'primary' : 'info' })
   t.push({ label: '维修完成', time: o?.finishedAt ? fmtTime(o.finishedAt) : '待维修', done: !!o?.finishedAt, type: o?.finishedAt ? 'primary' : 'info' })
   const acc = d.value.acceptances?.find(a => a.acceptance.result === 'PASSED')

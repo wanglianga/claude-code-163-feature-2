@@ -151,6 +151,11 @@ const overviewCards = computed(() => [
   { label: '事件总数', value: overview.value.totalIncidents ?? '-', color: '#1f3a5f' },
   { label: '待应急处置', value: overview.value.pendingEmergency ?? '-', color: '#f56c6c' },
   { label: '责任待定', value: overview.value.pendingOwner ?? '-', color: '#f56c6c' },
+  { label: '联合复核中', value: overview.value.jointReviewing ?? '-', color: '#e6a23c' },
+  { label: '市级协调池', value: overview.value.inCityPool ?? '-', color: '#f56c6c' },
+  { label: '强制认领决定', value: overview.value.forcedClaims ?? '-', color: '#b88230' },
+  { label: '应急基金待追偿', value: overview.value.fundPendingAmount != null ? money(overview.value.fundPendingAmount) : '-', color: '#f56c6c' },
+  { label: '应急基金已回补', value: overview.value.fundRecoveredAmount != null ? money(overview.value.fundRecoveredAmount) : '-', color: '#67c23a' },
   { label: '维修超时工单', value: overview.value.timeoutOrders ?? '-', color: '#e6a23c' },
   { label: '赔付总额', value: overview.value.totalCompensation != null ? money(overview.value.totalCompensation) : '-', color: '#b88230' },
   { label: '街道垫付应急费', value: overview.value.totalEmergencyCost != null ? money(overview.value.totalEmergencyCost) : '-', color: '#7b61ff' }

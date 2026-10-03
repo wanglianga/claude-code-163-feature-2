@@ -3,7 +3,9 @@ package com.city.manhole.config;
 import com.city.manhole.common.Constants;
 import com.city.manhole.model.*;
 import com.city.manhole.repo.*;
+import com.city.manhole.service.ReviewQueryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -30,9 +32,19 @@ public class DataSeeder implements CommandLineRunner {
     private final CostAllocationRepo costRepo;
     private final InspectionRouteRepo routeRepo;
     private final HandoverRuleRepo ruleRepo;
+    private final ManholeProfileRepo profileRepo;
+    private final ConstructionPermitRepo permitRepo;
+    private final RepairRecordRepo repairRecordRepo;
+    private final JointReviewRepo jointReviewRepo;
+    private final JointReviewSignoffRepo signoffRepo;
+    private final EmergencyFundAdvanceRepo advanceRepo;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    private User admin, street, citizen, citizen2, gas, power, telecom, municipal, repair1, repair2, inspector, comp;
+    @Value("${app.upload-dir}")
+    private String uploadDir;
+
+    private User admin, street, citizen, citizen2, gas, power, telecom, municipal, drainage,
+            repair1, repair2, inspector, comp, city;
 
     @Override
     @Transactional
@@ -40,8 +52,7 @@ public class DataSeeder implements CommandLineRunner {
         if (userRepo.count() > 0) return;
         seedUsers();
         seedIncidents();
-        seedRoutesAndRules();
-        System.out.println("===== 演示数据初始化完成 =====");
+        seedRoutesAndRules();        System.out.println("===== 演示数据初始化完成 =====");
     }
 
     private void seedUsers() {
@@ -53,10 +64,12 @@ public class DataSeeder implements CommandLineRunner {
         power = user("power", "owner123", "电力权属专员", Constants.Role.OWNER_UNIT, "国网电力公司", "13800000005");
         telecom = user("telecom", "owner123", "通信权属专员", Constants.Role.OWNER_UNIT, "联合通信公司", "13800000006");
         municipal = user("municipal", "owner123", "市政权属专员", Constants.Role.OWNER_UNIT, "市政工程公司", "13800000007");
+        drainage = user("drainage", "owner123", "排水权属专员", Constants.Role.OWNER_UNIT, "城市排水管理处", "13800000012");
         repair1 = user("repair1", "repair123", "维修一队长", Constants.Role.REPAIR_TEAM, "市政维修一队", "13800000008");
         repair2 = user("repair2", "repair123", "维修二队长", Constants.Role.REPAIR_TEAM, "燃气专业维修队", "13800000009");
         inspector = user("inspector", "inspect123", "巡查员-赵敏", Constants.Role.INSPECTOR, "城管执法局巡查队", "13800000010");
         comp = user("comp", "comp123", "赔付专员-钱芳", Constants.Role.COMPENSATOR, "保险理赔中心", "13800000011");
+        city = user("city", "city123", "市级协调员-孙雷", Constants.Role.CITY_COORDINATOR, "市城管委协调处", "0311-668899");
     }
 
     private User user(String username, String password, String name, String role, String org, String phone) {
@@ -73,6 +86,7 @@ public class DataSeeder implements CommandLineRunner {
     // ------------------------------------------------------------------
 
     private void seedIncidents() {
+        seedManholeProfiles();
         // 1. 全流程结案：燃气井盖缺失，车辆受损，赔付已支付，费用已分摊
         Incident i1 = base("MH20260708-0001", citizen, "缺失", "人民路与建设大街交口", "主干道", "高",
                 true, "私家车前轮陷入井口，轮毂变形", 80);
@@ -159,6 +173,7 @@ public class DataSeeder implements CommandLineRunner {
         i5.setOwnerStatus(Constants.OwnerStatus.PENDING);
         i5.setResponsibilityPending(true);
         i5.setEverPending(true);
+        i5.setManholeCode("BN-0731");
         incidentRepo.save(i5);
         emergency(i5, 8, 55, 80, "警示锥,临时盖板,夜间反光标识", "900");
         investigation(i5, "井口无盖，井圈标识磨损无法辨认", "管线图显示燃气与通信管线交汇",
@@ -258,6 +273,210 @@ public class DataSeeder implements CommandLineRunner {
         cost(i10, "150", "900", "0", Constants.CostStatus.PENDING,
                 "[{\"party\":\"权属单位-市政工程公司\",\"amount\":1050,\"reason\":\"权属已确认，由权属单位承担全部费用\"}]",
                 null, 0);
+
+        // 11. 互相推诿·联合现场复核进行中：裕华东路井盖松动，燃气/通信/排水均否认
+        Incident i11 = base("MH20260930-0001", citizen, "松动", "裕华东路与建华大街交口", "主干道", "中",
+                false, null, 2);
+        i11.setStatus(Constants.IncidentStatus.SECURED);
+        i11.setEmergencyStatus(Constants.EmergencyStatus.SECURED);
+        i11.setOwnerStatus(Constants.OwnerStatus.JOINT_REVIEW);
+        i11.setResponsibilityPending(true);
+        i11.setEverPending(true);
+        i11.setManholeCode("YH-1187");
+        incidentRepo.save(i11);
+        emergency(i11, 10, 80, 110, "警示锥,临时盖板", "300");
+        investigation(i11, "井圈铸字磨损，仅余编号 YH-1187", "管线图显示排水方沟与通信支管交叉",
+                "2025 年架空线入地施工，未见井盖移交记录", "三家单位均口头否认", "台账漏登",
+                "PENDING", null, 2);
+        JointReview r11 = new JointReview();
+        r11.setIncidentId(i11.getId());
+        r11.setInitiatorId(street.getId());
+        r11.setScheduledAt(LocalDateTime.now().plusDays(1).withHour(9).withMinute(30).withSecond(0).withNano(0));
+        r11.setSiteLocation("裕华东路与建华大街交口西北角井口");
+        r11.setReason("燃气、通信、排水单位均否认该井盖归属，五类证据无法定论，现组织联合现场复核。");
+        r11.setStatus(Constants.JointReviewStatus.INITIATED);
+        r11.setCreatedAt(LocalDateTime.now().minusDays(1));
+        jointReviewRepo.save(r11);
+        for (User u : List.of(gas, power, telecom, municipal, drainage)) {
+            JointReviewSignoff s = new JointReviewSignoff();
+            s.setReviewId(r11.getId());
+            s.setOwnerId(u.getId());
+            s.setUnitType(ReviewQueryService.unitTypeOf(u.getOrgName()));
+            s.setStatus(Constants.SignStatus.PENDING);
+            s.setCreatedAt(r11.getCreatedAt());
+            signoffRepo.save(s);
+        }
+
+        // 12. 互相推诿·已进入市级协调池：南二环辅路井盖缺失致骑行者摔伤，复核仍无法确认
+        Incident i12 = base("MH20260928-0001", citizen2, "缺失", "南二环辅路 K3+200", "次干道", "高",
+                true, "骑行者夜间碾压井口边缘摔伤，多处擦伤", 4);
+        i12.setStatus(Constants.IncidentStatus.SECURED);
+        i12.setEmergencyStatus(Constants.EmergencyStatus.SECURED);
+        i12.setOwnerStatus(Constants.OwnerStatus.ESCALATED);
+        i12.setResponsibilityPending(true);
+        i12.setEverPending(true);
+        i12.setManholeCode("NH-2046");
+        incidentRepo.save(i12);
+        emergency(i12, 9, 60, 90, "警示锥,临时盖板,夜间反光标识", "700");
+        investigation(i12, "井圈编号 NH-2046，无权属铸字", "雨污方沟、通信光缆与废弃燃气支管交错",
+                "2024 年雨污分流改造，井盖台账漏登", "燃气/通信/排水三方现场均否认", "台账无登记",
+                "PENDING", null, 4);
+        String telecomEvidence = seedEvidenceImage("seed-evidence-telecom.png", "TELECOM EVIDENCE");
+        String drainageEvidence = seedEvidenceImage("seed-evidence-drainage.png", "DRAINAGE EVIDENCE");
+        JointReview r12 = new JointReview();
+        r12.setIncidentId(i12.getId());
+        r12.setInitiatorId(street.getId());
+        r12.setScheduledAt(i12.getCreatedAt().plusDays(2));
+        r12.setSiteLocation("南二环辅路 K3+200 井口");
+        r12.setReason("燃气、通信、排水单位均否认井盖归属，现场风险高，发起联合现场复核。");
+        r12.setSiteFindings("开井核验：井内有一根过路光缆及废弃燃气支管，井底接入雨污方沟侧壁；"
+                + "三方均称非本单位在用设施，2024 年雨污分流改造竣工资料中该井位置标注不清。");
+        r12.setConclusion("DISPUTED");
+        r12.setStatus(Constants.JointReviewStatus.ESCALATED);
+        r12.setCreatedAt(i12.getCreatedAt().plusDays(1));
+        r12.setConcludedAt(i12.getCreatedAt().plusDays(2));
+        r12.setEscalatedAt(i12.getCreatedAt().plusDays(2));
+        r12.setAdvanceAmount(new BigDecimal("2700"));
+        r12.setCostSuggestion("[{\"party\":\"应急基金（先行垫付）\",\"amount\":2700,\"reason\":\"各单位代表到场后仍无法确认权属，费用先由应急基金垫付，待市级协调结论追偿\"}]");
+        jointReviewRepo.save(r12);
+        seedSignoff(r12, gas, "燃气代表-周工", Constants.SignStatus.SIGNED,
+                "开井核验未见燃气在用管道，废弃支管已封堵，非燃气设施井。", null, null, i12, 2);
+        seedSignoff(r12, power, "电力代表-吴工", Constants.SignStatus.SIGNED,
+                "井内无电缆及电力附属设施，与电力无关。", null, null, i12, 2);
+        seedSignoff(r12, telecom, "通信代表-郑工", Constants.SignStatus.REFUSED,
+                "井内光缆为过路废弃缆线，无交接点，非我公司资产。",
+                "经核管线 GIS 与资产台账，该井不在我公司资产清册；井内光缆为无主废弃缆线，"
+                        + "现场吊牌显示为早年铁路专网遗留，上传现场开井照片为证，拒绝签收。",
+                "[" + telecomEvidence + "]", i12, 2);
+        seedSignoff(r12, drainage, "排水代表-冯工", Constants.SignStatus.REFUSED,
+                "该井位于道路红线外绿化带，排水设施台账无此井，拒绝签收。",
+                "该井井底虽邻近雨污方沟，但井位在道路红线外，且井盖规格与排水统一样式不符；"
+                        + "调取 2024 年雨污分流改造竣工图，该点位未设置检查井，上传比对图纸为证。",
+                "[" + drainageEvidence + "]", i12, 2);
+        seedSignoff(r12, municipal, "市政代表-陈工", Constants.SignStatus.SIGNED,
+                "雨污分流改造由我司施工，竣工后设施已移交排水管理处，井盖样式以现场为准。",
+                null, null, i12, 2);
+        EmergencyFundAdvance adv = new EmergencyFundAdvance();
+        adv.setIncidentId(i12.getId());
+        adv.setReviewId(r12.getId());
+        adv.setApprovedBy(city.getId());
+        adv.setAmount(new BigDecimal("2700"));
+        adv.setPurpose("应急围护及先行抢修费用（待权属结论出具后追偿）");
+        adv.setStatus(Constants.RecoveryStatus.PENDING);
+        adv.setCreatedAt(r12.getEscalatedAt());
+        advanceRepo.save(adv);
+    }
+
+    private void seedSignoff(JointReview r, User owner, String repName, String status, String opinion,
+                             String refuseReason, String evidencePhotosJson, Incident inc, int daysAgo) {
+        JointReviewSignoff s = new JointReviewSignoff();
+        s.setReviewId(r.getId());
+        s.setOwnerId(owner.getId());
+        s.setUnitType(ReviewQueryService.unitTypeOf(owner.getOrgName()));
+        s.setRepresentativeName(repName);
+        s.setStatus(status);
+        s.setOpinion(opinion);
+        s.setRefuseReason(refuseReason);
+        s.setEvidencePhotos(evidencePhotosJson);
+        LocalDateTime t = LocalDateTime.now().minusDays(daysAgo);
+        s.setCreatedAt(t);
+        if (Constants.SignStatus.SIGNED.equals(status)) s.setSignedAt(t);
+        signoffRepo.save(s);
+    }
+
+    /** 推诿复核演示用的井盖档案、最近施工许可与历史维修记录 */
+    private void seedManholeProfiles() {
+        ManholeProfile p5 = new ManholeProfile();
+        p5.setManholeCode("BN-0731");
+        p5.setAddress("滨河路");
+        p5.setCoverType("不明");
+        p5.setChamberMarking("井壁有模糊喷漆编号，未见制式铭牌");
+        p5.setPipelineDiagram("燃气中压管线与通信光缆在该点位交汇，雨污方沟位于井位东侧约 3 米。");
+        p5.setPipelinePhotos("[]");
+        profileRepo.save(p5);
+        permit(p5, "ZG-2021-1106", "滨河路管网改造工程", "市建三公司",
+                2021, 5, 2021, 9, "燃气,通信", "竣工验收资料中无该井盖设施移交记录，台账漏登。");
+        repair(p5, 2022, 11, 3, "市政维修一队", "更换井座胶条、复位井盖", "450", "台账未注明权属");
+
+        ManholeProfile p11 = new ManholeProfile();
+        p11.setManholeCode("YH-1187");
+        p11.setAddress("裕华东路与建华大街交口");
+        p11.setCoverType("不明");
+        p11.setChamberMarking("井圈铸字磨损，仅余编号 YH-1187");
+        p11.setPipelineDiagram("排水方沟（南北向）与通信支管（东西向）在井位下方交叉，周边 5 米无燃气管线。");
+        p11.setPipelinePhotos("[]");
+        profileRepo.save(p11);
+        permit(p11, "JG-2025-0342", "裕华东路架空线入地工程", "华信通信工程公司",
+                2025, 3, 2025, 7, "通信", "工程已通车验收，但未见井盖设施权属移交单。");
+        repair(p11, 2023, 8, 19, "城市排水管理处", "井座沉降抬升处理", "680", "排水（记录存疑）");
+
+        ManholeProfile p12 = new ManholeProfile();
+        p12.setManholeCode("NH-2046");
+        p12.setAddress("南二环辅路 K3+200");
+        p12.setCoverType("不明");
+        p12.setChamberMarking("井内有过路光缆一根、废弃燃气支管（已封堵），井底接入雨污方沟侧壁");
+        p12.setPipelineDiagram("雨污合流方沟与通信光缆并行，另有早年铁路专网废弃支管；三条管线在该井位交错。");
+        p12.setPipelinePhotos("[]");
+        p12.setRegisteredOwnerId(null);
+        profileRepo.save(p12);
+        permit(p12, "YP-2024-0788", "南二环排水管网雨污分流改造", "市政工程建设集团",
+                2024, 4, 2024, 10, "排水,通信", "已竣工验收，但该井在竣工图中位置标注不清，井盖台账漏登。");
+        repair(p12, 2020, 6, 12, "城市排水管理处", "方沟清淤时临时复位井盖", "0", "排水（记录存疑）");
+        repair(p12, 2024, 9, 25, "华信通信工程公司", "施工期间更换井盖一座", "900", "施工单位（未移交）");
+    }
+
+    private void permit(ManholeProfile p, String no, String project, String constructor,
+                        int sy, int sm, int ey, int em, String involved, String handover) {
+        ConstructionPermit cp = new ConstructionPermit();
+        cp.setProfileId(p.getId());
+        cp.setPermitNo(no);
+        cp.setProjectName(project);
+        cp.setConstructor(constructor);
+        cp.setStartedAt(LocalDateTime.of(sy, sm, 10, 9, 0));
+        cp.setFinishedAt(LocalDateTime.of(ey, em, 20, 17, 0));
+        cp.setInvolvedUnits(involved);
+        cp.setHandoverInfo(handover);
+        permitRepo.save(cp);
+    }
+
+    private void repair(ManholeProfile p, int y, int mo, int d, String org, String content,
+                        String cost, String ownerOrg) {
+        RepairRecord rr = new RepairRecord();
+        rr.setProfileId(p.getId());
+        rr.setRepairedAt(LocalDateTime.of(y, mo, d, 10, 0));
+        rr.setRepairOrg(org);
+        rr.setContent(content);
+        rr.setCost(new BigDecimal(cost));
+        rr.setOwnerOrg(ownerOrg);
+        repairRecordRepo.save(rr);
+    }
+
+    /** 生成一张占位证据图片并写入上传目录，返回访问 URL */
+    private String seedEvidenceImage(String fileName, String label) {
+        try {
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(
+                    480, 300, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g = img.createGraphics();
+            g.setColor(java.awt.Color.WHITE);
+            g.fillRect(0, 0, 480, 300);
+            g.setColor(new java.awt.Color(180, 30, 30));
+            g.setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 28));
+            g.drawString(label, 40, 80);
+            g.setColor(java.awt.Color.DARK_GRAY);
+            g.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 18));
+            g.drawString("Manhole NH-2046 site photo", 40, 130);
+            g.drawString("Open-well verification record", 40, 160);
+            g.drawRect(30, 30, 420, 240);
+            g.drawLine(30, 210, 450, 210);
+            g.drawString("Evidence for refusal to sign", 40, 250);
+            g.dispose();
+            java.io.File dir = new java.io.File(uploadDir).getAbsoluteFile();
+            if (!dir.exists()) dir.mkdirs();
+            javax.imageio.ImageIO.write(img, "png", new java.io.File(dir, fileName));
+        } catch (Exception ignored) {
+            // 图片生成失败不影响种子数据
+        }
+        return "/uploads/" + fileName;
     }
 
     private Incident base(String code, User reporter, String issueType, String address, String roadType,
@@ -436,5 +655,10 @@ public class DataSeeder implements CommandLineRunner {
         rule3.setTitle("无主井盖先行处置与费用回补");
         rule3.setContent("权属无法即时确认的井盖险情，街道先行设置警示锥、临时盖板、夜间反光标识并垫付费用；权属确认后 30 日内由权属单位回补街道垫付费用，复核分摊结果以城管部门费用复核单为准。");
         ruleRepo.save(rule3);
+
+        HandoverRule rule4 = new HandoverRule();
+        rule4.setTitle("权属推诿联合现场复核与应急基金垫付");
+        rule4.setContent("燃气、通信、排水等单位均否认井盖归属的，街道可发起联合现场复核，各单位须派代表到场核验并在复核记录上签字；拒绝签收的必须说明理由并上传证据。复核仍无法确认的，事件进入市级协调池，维修费用先由应急基金垫付；市级协调人员审阅各方意见与证据后可决定强制认领，垫付款按复核结论向责任单位追偿。");
+        ruleRepo.save(rule4);
     }
 }

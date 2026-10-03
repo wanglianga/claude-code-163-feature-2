@@ -22,7 +22,22 @@ export const OWNER_STATUS = {
   UNCONFIRMED: { label: '权属未确认', type: 'info' },
   INVESTIGATING: { label: '权属排查中', type: 'warning' },
   CONFIRMED: { label: '权属已确认', type: 'success' },
-  PENDING: { label: '责任待定', type: 'danger' }
+  PENDING: { label: '责任待定', type: 'danger' },
+  JOINT_REVIEW: { label: '联合复核中', type: 'warning' },
+  ESCALATED: { label: '市级协调池', type: 'danger' }
+}
+
+export const REVIEW_STATUS = {
+  INITIATED: { label: '复核进行中', type: 'warning' },
+  CONCLUDED: { label: '已出具权属结论', type: 'success' },
+  ESCALATED: { label: '已进入市级协调池', type: 'danger' },
+  FORCED: { label: '市级强制认领终结', type: 'success' }
+}
+
+export const SIGN_STATUS = {
+  PENDING: { label: '待签字', type: 'info' },
+  SIGNED: { label: '已签字', type: 'success' },
+  REFUSED: { label: '拒绝签收', type: 'danger' }
 }
 
 export const REPAIR_STATUS = {

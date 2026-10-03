@@ -71,7 +71,7 @@
 import { computed, onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { useAuthStore } from '../store/auth'
-import { apiIncidents, apiMyOrders, apiCompensations, apiCostAllocations } from '../api'
+import { apiIncidents, apiMyOrders, apiCompensations, apiCostAllocations, apiCityPool, apiCityAdvances } from '../api'
 import { INCIDENT_STATUS, EMERGENCY_STATUS, OWNER_STATUS, dangerType, fmtTime } from '../utils/format'
 
 const auth = useAuthStore()
@@ -86,6 +86,8 @@ const incidents = ref([])
 const orders = ref([])
 const comps = ref([])
 const costs = ref([])
+const pool = ref([])
+const advances = ref([])
 
 const cards = computed(() => {
   const list = incidents.value
@@ -135,6 +137,13 @@ const cards = computed(() => {
         { label: '待费用复核', value: costs.value.filter(c => c.status === 'PENDING').length, color: '#e6a23c', to: '/cost' },
         { label: '已结案', value: list.filter(i => i.status === 'CLOSED').length, color: '#67c23a' }
       ]
+    case 'CITY_COORDINATOR':
+      return [
+        { label: '市级协调池', value: pool.value.length, color: '#f56c6c', to: '/city-pool' },
+        { label: '应急基金垫付待追偿', value: advances.value.filter(a => a.advance.status === 'PENDING').length, color: '#e6a23c', to: '/city-pool' },
+        { label: '已追偿回补', value: advances.value.filter(a => a.advance.status === 'RECOVERED').length, color: '#67c23a' },
+        { label: '全部事件', value: list.length }
+      ]
     default:
       return []
   }
@@ -147,14 +156,16 @@ const todoTitle = computed(() => ({
   REPAIR_TEAM: '相关事件',
   INSPECTOR: '待验收事件',
   COMPENSATOR: '涉及赔付的事件',
-  ADMIN: '最新事件'
+  ADMIN: '最新事件',
+  CITY_COORDINATOR: '市级协调与推诿事件'
 }[role.value] || '事件列表'))
 
 const todos = computed(() => {
   const list = incidents.value
   switch (role.value) {
     case 'STREET_DUTY':
-      return list.filter(i => i.emergencyStatus !== 'SECURED' || ['INVESTIGATING', 'PENDING'].includes(i.ownerStatus)).slice(0, 10)
+      return list.filter(i => i.emergencyStatus !== 'SECURED'
+        || ['INVESTIGATING', 'PENDING', 'JOINT_REVIEW', 'ESCALATED'].includes(i.ownerStatus)).slice(0, 10)
     case 'OWNER_UNIT':
       return list.filter(i => i.ownerStatus !== 'CONFIRMED' || i.status === 'OWNER_CONFIRMED').slice(0, 10)
     case 'INSPECTOR':
@@ -175,6 +186,10 @@ onMounted(async () => {
   if (role.value === 'ADMIN') {
     costs.value = await apiCostAllocations()
     comps.value = await apiCompensations()
+  }
+  if (role.value === 'CITY_COORDINATOR') {
+    pool.value = await apiCityPool()
+    advances.value = await apiCityAdvances()
   }
 })
 </script>

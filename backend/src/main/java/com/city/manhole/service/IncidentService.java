@@ -29,6 +29,7 @@ public class IncidentService {
     private final CompensationRepo compensationRepo;
     private final CostAllocationRepo costRepo;
     private final NotificationService notificationService;
+    private final ReviewQueryService reviewQueryService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public static final List<String> ISSUE_TYPES = List.of("缺失", "松动", "异响", "塌陷");
@@ -97,10 +98,11 @@ public class IncidentService {
         switch (me.getRole()) {
             case Constants.Role.CITIZEN -> list = incidentRepo.findByReporterIdOrderByCreatedAtDesc(me.getId());
             case Constants.Role.OWNER_UNIT -> {
-                // 可认领的（未确认/排查中/责任待定）+ 已归我的
+                // 可认领/被通知复核的（未确认/排查中/责任待定/联合复核中/市级协调池）+ 已归我的
                 List<Incident> claimable = incidentRepo.findByOwnerStatusInOrderByCreatedAtDesc(
                         List.of(Constants.OwnerStatus.UNCONFIRMED, Constants.OwnerStatus.INVESTIGATING,
-                                Constants.OwnerStatus.PENDING));
+                                Constants.OwnerStatus.PENDING, Constants.OwnerStatus.JOINT_REVIEW,
+                                Constants.OwnerStatus.ESCALATED));
                 List<Incident> mine = incidentRepo.findByOwnerIdOrderByCreatedAtDesc(me.getId());
                 Set<Long> ids = new HashSet<>();
                 list = new ArrayList<>();
@@ -199,6 +201,10 @@ public class IncidentService {
 
         compensationRepo.findByIncidentId(id).ifPresent(c -> m.put("compensation", c));
         costRepo.findByIncidentId(id).ifPresent(c -> m.put("costAllocation", c));
+
+        // 推诿复核证据包（井盖编号/地下管线图/最近施工许可/历史维修记录）与联合复核记录
+        m.put("evidence", reviewQueryService.evidence(inc));
+        m.put("jointReviews", reviewQueryService.reviewsOf(id));
         return m;
     }
 
@@ -210,12 +216,11 @@ public class IncidentService {
             case Constants.Role.OWNER_UNIT -> {
                 boolean claimable = !Constants.OwnerStatus.CONFIRMED.equals(inc.getOwnerStatus());
                 if (!claimable && !me.getId().equals(inc.getOwnerId())) throw new BizException("无权查看该事件");
-            }
-            case Constants.Role.REPAIR_TEAM -> {
+            }            case Constants.Role.REPAIR_TEAM -> {
                 RepairOrder o = repairOrderRepo.findByIncidentId(inc.getId()).orElse(null);
                 if (o == null || !o.getTeamId().equals(me.getId())) throw new BizException("无权查看该事件");
             }
-            default -> { /* 街道/巡查/赔付/管理员可查看全部 */ }
+            default -> { /* 街道/巡查/赔付/管理员/市级协调人员可查看全部 */ }
         }
     }
 

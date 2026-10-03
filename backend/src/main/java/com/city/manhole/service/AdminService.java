@@ -30,7 +30,7 @@ public class AdminService {
     private static final Set<String> CREATABLE_ROLES = Set.of(
             Constants.Role.CITIZEN, Constants.Role.STREET_DUTY, Constants.Role.OWNER_UNIT,
             Constants.Role.REPAIR_TEAM, Constants.Role.INSPECTOR, Constants.Role.COMPENSATOR,
-            Constants.Role.ADMIN);
+            Constants.Role.ADMIN, Constants.Role.CITY_COORDINATOR);
 
     // ---------- 账号 ----------
     public List<User> users() {

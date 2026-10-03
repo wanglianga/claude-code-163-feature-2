@@ -27,6 +27,8 @@ public class StatsService {
     private final CompensationRepo compensationRepo;
     private final CostAllocationRepo costRepo;
     private final UserRepo userRepo;
+    private final com.city.manhole.repo.JointReviewRepo jointReviewRepo;
+    private final com.city.manhole.repo.EmergencyFundAdvanceRepo advanceRepo;
 
     @Value("${app.repair-timeout-hours}")
     private long repairTimeoutHours;
@@ -55,6 +57,19 @@ public class StatsService {
                 .filter(i -> !Constants.EmergencyStatus.SECURED.equals(i.getEmergencyStatus())).count();
         long pendingOwner = all.stream()
                 .filter(i -> Constants.OwnerStatus.PENDING.equals(i.getOwnerStatus())).count();
+        long jointReviewing = all.stream()
+                .filter(i -> Constants.OwnerStatus.JOINT_REVIEW.equals(i.getOwnerStatus())).count();
+        long inCityPool = all.stream()
+                .filter(i -> Constants.OwnerStatus.ESCALATED.equals(i.getOwnerStatus())).count();
+        long forcedClaims = jointReviewRepo.findAll().stream()
+                .filter(r -> Constants.JointReviewStatus.FORCED.equals(r.getStatus())).count();
+        java.math.BigDecimal fundPending = advanceRepo.findAll().stream()
+                .filter(a -> Constants.RecoveryStatus.PENDING.equals(a.getStatus()))
+                .map(EmergencyFundAdvance::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        java.math.BigDecimal fundRecovered = advanceRepo.findAll().stream()
+                .filter(a -> Constants.RecoveryStatus.RECOVERED.equals(a.getStatus()))
+                .map(a -> a.getRecoveredAmount() == null ? BigDecimal.ZERO : a.getRecoveredAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         List<RepairOrder> orders = repairOrderRepo.findAll();
         long timeoutOrders = orders.stream().filter(this::isTimeout).count();
@@ -72,6 +87,11 @@ public class StatsService {
         m.put("byDanger", byDanger);
         m.put("pendingEmergency", pendingEmergency);
         m.put("pendingOwner", pendingOwner);
+        m.put("jointReviewing", jointReviewing);
+        m.put("inCityPool", inCityPool);
+        m.put("forcedClaims", forcedClaims);
+        m.put("fundPendingAmount", fundPending);
+        m.put("fundRecoveredAmount", fundRecovered);
         m.put("timeoutOrders", timeoutOrders);
         m.put("totalOrders", orders.size());
         m.put("totalCompensation", totalComp);

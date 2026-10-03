@@ -38,5 +38,6 @@ export const ROLE_NAMES = {
   REPAIR_TEAM: '维修队',
   INSPECTOR: '城管巡查员',
   COMPENSATOR: '赔付专员',
-  ADMIN: '城管管理员'
+  ADMIN: '城管管理员',
+  CITY_COORDINATOR: '市级协调人员'
 }

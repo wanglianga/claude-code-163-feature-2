@@ -13,6 +13,7 @@ public final class Constants {
         public static final String INSPECTOR = "INSPECTOR";       // 城管巡查员
         public static final String COMPENSATOR = "COMPENSATOR";   // 赔付专员
         public static final String ADMIN = "ADMIN";               // 城管管理员
+        public static final String CITY_COORDINATOR = "CITY_COORDINATOR"; // 市级协调人员
     }
 
     /** 事件主流程状态 */
@@ -39,6 +40,29 @@ public final class Constants {
         public static final String INVESTIGATING = "INVESTIGATING"; // 排查中
         public static final String CONFIRMED = "CONFIRMED";     // 已确认/认领
         public static final String PENDING = "PENDING";         // 责任待定（街道先行处置）
+        public static final String JOINT_REVIEW = "JOINT_REVIEW";   // 联合现场复核中
+        public static final String ESCALATED = "ESCALATED";     // 已进入市级协调池
+    }
+
+    /** 联合现场复核状态 */
+    public static final class JointReviewStatus {
+        public static final String INITIATED = "INITIATED"; // 已发起，待各方代表到场签字
+        public static final String CONCLUDED = "CONCLUDED"; // 复核结束，已出具权属结论
+        public static final String ESCALATED = "ESCALATED"; // 仍无法确认，已进入市级协调池
+        public static final String FORCED = "FORCED";       // 市级协调强制认领终结
+    }
+
+    /** 联合复核各方签收状态 */
+    public static final class SignStatus {
+        public static final String PENDING = "PENDING"; // 待签收
+        public static final String SIGNED = "SIGNED";   // 已签字认可
+        public static final String REFUSED = "REFUSED"; // 拒绝签收（须填理由并上传证据）
+    }
+
+    /** 应急基金垫付款追偿状态 */
+    public static final class RecoveryStatus {
+        public static final String PENDING = "PENDING";     // 待按复核结论追偿
+        public static final String RECOVERED = "RECOVERED"; // 已追偿回补
     }
 
     /** 维修工单状态 */

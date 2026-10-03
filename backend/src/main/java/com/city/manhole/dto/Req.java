@@ -23,6 +23,15 @@ public final class Req {
 
     public record ClaimReq(String note) {}
 
+    public record JointReviewInitReq(java.time.LocalDateTime scheduledAt, String siteLocation, String reason) {}
+    public record JointReviewSignReq(Boolean agree, String representativeName, String opinion,
+                                     String refuseReason, List<String> evidencePhotos) {}
+    public record JointReviewConcludeReq(String conclusion, Long confirmedOwnerId, String siteFindings,
+                                         List<Map<String, Object>> costSuggestion) {}
+    public record ForceClaimReq(Long ownerId, String reason, List<Map<String, Object>> costSuggestion) {}
+    public record FundAdvanceReq(java.math.BigDecimal amount, String purpose) {}
+    public record FundRecoverReq(java.math.BigDecimal amount) {}
+
     public record RepairOrderReq(Long teamId) {}
     public record RepairFinishReq(String chamberCondition, String coverSpec, Boolean needRoadClosure,
                                   Boolean needCoord, String coordUnits, String repairNote,

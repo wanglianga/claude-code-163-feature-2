@@ -12,6 +12,7 @@ const routes = [
       { path: 'incidents/:id', component: () => import('../views/IncidentDetail.vue') },
       { path: 'workbench', component: () => import('../views/Workbench.vue') },
       { path: 'compensation', component: () => import('../views/Compensation.vue'), meta: { roles: ['COMPENSATOR', 'ADMIN'] } },
+      { path: 'city-pool', component: () => import('../views/CityPool.vue'), meta: { roles: ['CITY_COORDINATOR', 'ADMIN'] } },
       { path: 'cost', component: () => import('../views/Cost.vue'), meta: { roles: ['ADMIN', 'STREET_DUTY'] } },
       { path: 'stats', component: () => import('../views/Stats.vue'), meta: { roles: ['ADMIN', 'STREET_DUTY', 'INSPECTOR', 'COMPENSATOR'] } },
       { path: 'routes', component: () => import('../views/Routes.vue'), meta: { roles: ['ADMIN'] } },

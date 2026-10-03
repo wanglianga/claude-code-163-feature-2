@@ -160,7 +160,8 @@ const title = computed(() => ({
   STREET_DUTY: '应急处置台（应急线 + 权属线）',
   OWNER_UNIT: '认领与派单',
   INSPECTOR: '验收工作台',
-  ADMIN: '全部事件'
+  ADMIN: '全部事件',
+  CITY_COORDINATOR: '市级协调工作台'
 }[role.value] || '事件列表'))
 
 const tabs = computed(() => {
@@ -177,6 +178,7 @@ const tabs = computed(() => {
         { label: '待应急处置', list: list.filter(i => i.emergencyStatus !== 'SECURED') },
         { label: '待权属排查', list: list.filter(i => i.ownerStatus === 'INVESTIGATING') },
         { label: '责任待定', list: list.filter(i => i.ownerStatus === 'PENDING') },
+        { label: '联合复核/协调池', list: list.filter(i => ['JOINT_REVIEW', 'ESCALATED'].includes(i.ownerStatus)) },
         { label: '全部', list }
       ]
     case 'OWNER_UNIT':
@@ -190,6 +192,12 @@ const tabs = computed(() => {
       return [
         { label: '待验收', list: list.filter(i => i.status === 'REPAIRED') },
         { label: '已验收', list: list.filter(i => ['ACCEPTED', 'CLOSED'].includes(i.status)) },
+        { label: '全部', list }
+      ]
+    case 'CITY_COORDINATOR':
+      return [
+        { label: '市级协调池', list: list.filter(i => i.ownerStatus === 'ESCALATED') },
+        { label: '联合复核中', list: list.filter(i => i.ownerStatus === 'JOINT_REVIEW') },
         { label: '全部', list }
       ]
     default:

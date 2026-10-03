@@ -8,6 +8,7 @@
           <el-menu-item v-if="role === 'CITIZEN'" index="/report">我要上报</el-menu-item>
           <el-menu-item v-if="showWorkbench" index="/workbench">{{ workbenchName }}</el-menu-item>
           <el-menu-item v-if="['COMPENSATOR', 'ADMIN'].includes(role)" index="/compensation">赔付管理</el-menu-item>
+          <el-menu-item v-if="['CITY_COORDINATOR', 'ADMIN'].includes(role)" index="/city-pool">市级协调池</el-menu-item>
           <el-menu-item v-if="['ADMIN', 'STREET_DUTY'].includes(role)" index="/cost">费用分摊</el-menu-item>
           <el-menu-item v-if="['ADMIN', 'STREET_DUTY', 'INSPECTOR', 'COMPENSATOR'].includes(role)" index="/stats">统计分析</el-menu-item>
           <el-menu-item v-if="role === 'ADMIN'" index="/routes">巡检路线</el-menu-item>
@@ -66,11 +67,12 @@ const workbenchName = computed(() => ({
   STREET_DUTY: '应急处置台',
   OWNER_UNIT: '认领与派单',
   REPAIR_TEAM: '维修工单',
-  INSPECTOR: '验收工作台'
+  INSPECTOR: '验收工作台',
+  CITY_COORDINATOR: '市级协调台'
 }[role.value] || '工作台'))
 
 const showWorkbench = computed(() =>
-  ['CITIZEN', 'STREET_DUTY', 'OWNER_UNIT', 'REPAIR_TEAM', 'INSPECTOR'].includes(role.value))
+  ['CITIZEN', 'STREET_DUTY', 'OWNER_UNIT', 'REPAIR_TEAM', 'INSPECTOR', 'CITY_COORDINATOR'].includes(role.value))
 
 async function loadNotifications() {
   const data = await apiNotifications()

@@ -56,6 +56,17 @@ export const apiSecure = (id, data) => http.post(`/api/incidents/${id}/emergency
 export const apiInvestigate = (id, data) => http.post(`/api/incidents/${id}/investigation`, data)
 export const apiClaim = (id, data) => http.post(`/api/incidents/${id}/claim`, data)
 
+// ---------- 联合现场复核 / 市级协调 ----------
+export const apiInitiateReview = (incidentId, data) =>
+  http.post(`/api/incidents/${incidentId}/joint-reviews`, data)
+export const apiSignReview = (id, data) => http.post(`/api/joint-reviews/${id}/sign`, data)
+export const apiConcludeReview = (id, data) => http.post(`/api/joint-reviews/${id}/conclude`, data)
+export const apiCityPool = () => http.get('/api/city/pool')
+export const apiCityAdvances = () => http.get('/api/city/advances')
+export const apiForceClaim = (id, data) => http.post(`/api/joint-reviews/${id}/force-claim`, data)
+export const apiFundAdvance = (id, data) => http.post(`/api/joint-reviews/${id}/advance`, data)
+export const apiFundRecover = (id, data) => http.post(`/api/emergency-advances/${id}/recover`, data)
+
 // ---------- 维修 ----------
 export const apiCreateOrder = (id, data) => http.post(`/api/incidents/${id}/repair-order`, data)
 export const apiMyOrders = () => http.get('/api/repair-orders')

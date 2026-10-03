@@ -9,6 +9,7 @@ body {
 .page-card { margin-bottom: 16px; }
 
 .text-muted { color: #909399; font-size: 13px; }
+.text-danger { color: #f56c6c; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; }
 .mt16 { margin-top: 16px; }
 .mb16 { margin-bottom: 16px; }

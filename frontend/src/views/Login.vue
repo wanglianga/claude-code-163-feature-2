@@ -46,10 +46,13 @@ const accounts = [
   { u: 'citizen', p: 'citizen123', r: '市民' },
   { u: 'street', p: 'street123', r: '街道值班员' },
   { u: 'gas', p: 'owner123', r: '权属单位-燃气' },
+  { u: 'telecom', p: 'owner123', r: '权属单位-通信' },
+  { u: 'drainage', p: 'owner123', r: '权属单位-排水' },
   { u: 'municipal', p: 'owner123', r: '权属单位-市政' },
   { u: 'repair1', p: 'repair123', r: '维修队' },
   { u: 'inspector', p: 'inspect123', r: '城管巡查员' },
   { u: 'comp', p: 'comp123', r: '赔付专员' },
+  { u: 'city', p: 'city123', r: '市级协调人员' },
   { u: 'admin', p: 'admin123', r: '城管管理员' }
 ]
 

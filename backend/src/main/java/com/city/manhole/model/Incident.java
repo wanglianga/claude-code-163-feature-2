@@ -81,6 +81,10 @@ public class Incident {
     @Column(nullable = false)
     private Boolean everPending = false;
 
+    /** 关联井盖档案编号（manhole_profile.manhole_code），推诿复核时展示档案证据 */
+    @Column(length = 32)
+    private String manholeCode;
+
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();
     private LocalDateTime closedAt;
