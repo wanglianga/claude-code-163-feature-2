@@ -7,6 +7,7 @@
           <el-menu-item index="/">首页</el-menu-item>
           <el-menu-item v-if="role === 'CITIZEN'" index="/report">我要上报</el-menu-item>
           <el-menu-item v-if="showWorkbench" index="/workbench">{{ workbenchName }}</el-menu-item>
+          <el-menu-item v-if="['STREET_DUTY', 'OWNER_UNIT', 'ADMIN'].includes(role)" index="/joint-reviews">联合复核</el-menu-item>
           <el-menu-item v-if="['COMPENSATOR', 'ADMIN'].includes(role)" index="/compensation">赔付管理</el-menu-item>
           <el-menu-item v-if="['ADMIN', 'STREET_DUTY'].includes(role)" index="/cost">费用分摊</el-menu-item>
           <el-menu-item v-if="['ADMIN', 'STREET_DUTY', 'INSPECTOR', 'COMPENSATOR'].includes(role)" index="/stats">统计分析</el-menu-item>

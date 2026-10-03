@@ -29,6 +29,7 @@ public class IncidentService {
     private final CompensationRepo compensationRepo;
     private final CostAllocationRepo costRepo;
     private final NotificationService notificationService;
+    private final org.springframework.beans.factory.ObjectProvider<JointReviewService> jointReviewProvider;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public static final List<String> ISSUE_TYPES = List.of("缺失", "松动", "异响", "塌陷");
@@ -100,7 +101,8 @@ public class IncidentService {
                 // 可认领的（未确认/排查中/责任待定）+ 已归我的
                 List<Incident> claimable = incidentRepo.findByOwnerStatusInOrderByCreatedAtDesc(
                         List.of(Constants.OwnerStatus.UNCONFIRMED, Constants.OwnerStatus.INVESTIGATING,
-                                Constants.OwnerStatus.PENDING));
+                                Constants.OwnerStatus.PENDING, Constants.OwnerStatus.JOINT_REVIEW,
+                                Constants.OwnerStatus.CITY_POOL));
                 List<Incident> mine = incidentRepo.findByOwnerIdOrderByCreatedAtDesc(me.getId());
                 Set<Long> ids = new HashSet<>();
                 list = new ArrayList<>();
@@ -132,6 +134,7 @@ public class IncidentService {
         m.put("emergencyStatus", inc.getEmergencyStatus());
         m.put("ownerStatus", inc.getOwnerStatus());
         m.put("responsibilityPending", inc.getResponsibilityPending());
+        m.put("everCityPool", inc.getEverCityPool());
         m.put("createdAt", inc.getCreatedAt());
         m.put("ownerOrg", inc.getOwnerId() == null ? null :
                 userRepo.findById(inc.getOwnerId()).map(User::getOrgName).orElse(null));
@@ -199,6 +202,7 @@ public class IncidentService {
 
         compensationRepo.findByIncidentId(id).ifPresent(c -> m.put("compensation", c));
         costRepo.findByIncidentId(id).ifPresent(c -> m.put("costAllocation", c));
+        m.put("jointReview", jointReviewProvider.getObject().detailOfIncident(id));
         return m;
     }
 

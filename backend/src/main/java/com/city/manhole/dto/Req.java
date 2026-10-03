@@ -23,6 +23,16 @@ public final class Req {
 
     public record ClaimReq(String note) {}
 
+    public record ReviewInitiateReq(List<Long> ownerIds, String manholeCode, String pipelineMap,
+                                    String latestPermit, String repairHistory, String scheduledAt,
+                                    String location, String note) {}
+    public record ReviewSignReq(String signerName, String signImage, String note) {}
+    public record ReviewRefuseReq(String reason, List<String> evidence, String note) {}
+    public record ReviewFinishReq(String conclusion, Long confirmedOwnerId,
+                                  List<Map<String, Object>> costSuggestion, String conclusionNote) {}
+    public record FundAdvanceReq(BigDecimal amount, String note) {}
+    public record ForceClaimReq(Long ownerId, String note) {}
+
     public record RepairOrderReq(Long teamId) {}
     public record RepairFinishReq(String chamberCondition, String coverSpec, Boolean needRoadClosure,
                                   Boolean needCoord, String coordUnits, String repairNote,

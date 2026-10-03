@@ -4,11 +4,13 @@ import com.city.manhole.common.Constants;
 import com.city.manhole.model.*;
 import com.city.manhole.repo.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,9 +32,14 @@ public class DataSeeder implements CommandLineRunner {
     private final CostAllocationRepo costRepo;
     private final InspectionRouteRepo routeRepo;
     private final HandoverRuleRepo ruleRepo;
+    private final JointReviewRepo jointReviewRepo;
+    private final ReviewSignatureRepo reviewSignatureRepo;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    private User admin, street, citizen, citizen2, gas, power, telecom, municipal, repair1, repair2, inspector, comp;
+    @Value("${app.upload-dir}")
+    private String uploadDir;
+
+    private User admin, street, citizen, citizen2, gas, power, telecom, municipal, drainage, repair1, repair2, inspector, comp;
 
     @Override
     @Transactional
@@ -53,6 +60,7 @@ public class DataSeeder implements CommandLineRunner {
         power = user("power", "owner123", "电力权属专员", Constants.Role.OWNER_UNIT, "国网电力公司", "13800000005");
         telecom = user("telecom", "owner123", "通信权属专员", Constants.Role.OWNER_UNIT, "联合通信公司", "13800000006");
         municipal = user("municipal", "owner123", "市政权属专员", Constants.Role.OWNER_UNIT, "市政工程公司", "13800000007");
+        drainage = user("drainage", "owner123", "排水权属专员", Constants.Role.OWNER_UNIT, "城市排水集团", "13800000012");
         repair1 = user("repair1", "repair123", "维修一队长", Constants.Role.REPAIR_TEAM, "市政维修一队", "13800000008");
         repair2 = user("repair2", "repair123", "维修二队长", Constants.Role.REPAIR_TEAM, "燃气专业维修队", "13800000009");
         inspector = user("inspector", "inspect123", "巡查员-赵敏", Constants.Role.INSPECTOR, "城管执法局巡查队", "13800000010");
@@ -258,6 +266,82 @@ public class DataSeeder implements CommandLineRunner {
         cost(i10, "150", "900", "0", Constants.CostStatus.PENDING,
                 "[{\"party\":\"权属单位-市政工程公司\",\"amount\":1050,\"reason\":\"权属已确认，由权属单位承担全部费用\"}]",
                 null, 0);
+
+        // 11. 燃气/通信/排水均否认归属：联合现场复核进行中，通信已拒签并上传证据
+        Incident i11 = base("MH20260928-0001", citizen, "缺失", "裕华东路与槐安路交口", "主干道", "高",
+                false, null, 1);
+        i11.setStatus(Constants.IncidentStatus.SECURED);
+        i11.setEmergencyStatus(Constants.EmergencyStatus.SECURED);
+        i11.setOwnerStatus(Constants.OwnerStatus.JOINT_REVIEW);
+        i11.setResponsibilityPending(true);
+        i11.setEverPending(true);
+        incidentRepo.save(i11);
+        emergency(i11, 9, 60, 85, "警示锥,临时盖板,夜间反光标识", "760");
+        investigation(i11, "井圈铸字磨损，仅见编号 YH-0417", "燃气、通信、排水三条管线在交口交汇",
+                "2023 年道路大修许可（市政工程公司承办）", "周边商户对归属说法不一", "三家单位台账均无登记",
+                "PENDING", null, 1);
+        JointReview r11 = new JointReview();
+        r11.setIncidentId(i11.getId());
+        r11.setInitiatedById(street.getId());
+        r11.setManholeCode("YH-0417（井圈铸字编号，字迹磨损）");
+        r11.setPipelineMap("地下管线图：燃气中压管（深 1.2m）、通信光缆（深 0.8m）、排水雨水管（深 2.1m）三线交汇，井室深 1.9m");
+        r11.setLatestPermit("最近一次施工许可：城施许字〔2023〕第 118 号，裕华东路道路大修，承办单位市政工程公司");
+        r11.setRepairHistory("历史维修：2021-05 更换过井盖（承办单位登记缺失）；2019-09 通信扩容时曾开启该井");
+        r11.setScheduledAt(LocalDateTime.now().plusDays(1).withHour(9).withMinute(30).withSecond(0).withNano(0));
+        r11.setLocation("裕华东路与槐安路交口东北角现场");
+        r11.setNote("燃气、通信、排水三家单位均否认归属，请代表携带本单位管线资料到场共同核验。");
+        r11.setStatus(Constants.ReviewStatus.IN_PROGRESS);
+        jointReviewRepo.save(r11);
+        reviewSignature(r11, i11, gas, Constants.SignStatus.PENDING, null, null, null, null);
+        reviewSignature(r11, i11, drainage, Constants.SignStatus.PENDING, null, null, null, null);
+        reviewSignature(r11, i11, telecom, Constants.SignStatus.REFUSED, null, null,
+                "现场比对我单位通信光缆走线图，该井内未敷设光缆，井室结构亦非通信标准井，非我单位设施。",
+                List.of(evidenceImage("通信走线图比对"), evidenceImage("井室内部照片")));
+
+        // 12. 复核仍无法确认：进入市级协调池，应急基金已垫付，三家均拒签有证据，等待市级强制认领
+        Incident i12 = base("MH20260925-0001", citizen2, "塌陷", "南二环辅道", "次干道", "高",
+                true, "电动车前轮陷入塌陷区域，骑手擦伤", 4);
+        i12.setStatus(Constants.IncidentStatus.SECURED);
+        i12.setEmergencyStatus(Constants.EmergencyStatus.SECURED);
+        i12.setOwnerStatus(Constants.OwnerStatus.CITY_POOL);
+        i12.setResponsibilityPending(true);
+        i12.setEverPending(true);
+        i12.setEverCityPool(true);
+        incidentRepo.save(i12);
+        emergency(i12, 11, 70, 95, "警示锥,临时盖板,夜间反光标识", "1200");
+        investigation(i12, "井圈编号 NH-2208，无权属铸字", "燃气管与排水管相邻",
+                "施工许可记录缺失", "商户称未见任何单位巡查", "台账无登记",
+                "PENDING", null, 4);
+        JointReview r12 = new JointReview();
+        r12.setIncidentId(i12.getId());
+        r12.setInitiatedById(street.getId());
+        r12.setManholeCode("NH-2208");
+        r12.setPipelineMap("地下管线图：燃气中压管与排水雨水箱涵相邻，走向与井位偏差均在 0.5m 内");
+        r12.setLatestPermit("最近一次施工许可：未查询到（档案缺失）");
+        r12.setRepairHistory("历史维修：仅 2018 年一条井盖更换工单，未登记承办单位");
+        r12.setScheduledAt(i12.getCreatedAt().plusDays(1));
+        r12.setLocation("南二环辅道现场");
+        r12.setNote("三家单位现场核验后仍各执一词，无法形成一致结论。");
+        r12.setStatus(Constants.ReviewStatus.ESCALATED);
+        r12.setConclusion("UNRESOLVED");
+        r12.setConclusionNote("现场井室同时邻近燃气与排水设施，各方证据均不能排他，复核无法确认权属，上报市级协调。");
+        r12.setEscalationNote(r12.getConclusionNote());
+        r12.setEscalatedAt(LocalDateTime.now().minusDays(2));
+        r12.setFinishedAt(r12.getEscalatedAt());
+        r12.setCostSuggestion("[{\"party\":\"市级应急基金（先行垫付，待追偿）\",\"ratio\":100,\"reason\":\"联合现场复核仍无法确认权属，应急基金先行垫付，待市级协调认定后追偿\"}]");
+        r12.setFundAdvanceAmount(new BigDecimal("3600"));
+        r12.setFundAdvanceAt(LocalDateTime.now().minusDays(2));
+        r12.setFundAdvanceNote("应急围护及临时盖板费用 ¥1200、应急维修 ¥2400，待责任认定后追偿。");
+        jointReviewRepo.save(r12);
+        reviewSignature(r12, i12, gas, Constants.SignStatus.REFUSED, null, null,
+                "井室内无燃气阀门、凝水缸等附属设施，测漏无燃气浓度，非燃气井。",
+                List.of(evidenceImage("燃气测漏记录")));
+        reviewSignature(r12, i12, telecom, Constants.SignStatus.REFUSED, null, null,
+                "井内无光缆托架及余缆，非通信井。",
+                List.of(evidenceImage("井室无光缆照片")));
+        reviewSignature(r12, i12, drainage, Constants.SignStatus.REFUSED, null, null,
+                "该井未接入雨水箱涵，井底为实土，非排水检查井。",
+                List.of(evidenceImage("井底实拍")));
     }
 
     private Incident base(String code, User reporter, String issueType, String address, String roadType,
@@ -317,6 +401,54 @@ public class DataSeeder implements CommandLineRunner {
         c.setClaimType(type);
         c.setCreatedAt(LocalDateTime.now().minusDays(daysAgo));
         claimRepo.save(c);
+    }
+
+    private void reviewSignature(JointReview r, Incident inc, User owner, String status, String signerName,
+                                 String signImage, String refuseReason, List<String> evidence) {
+        ReviewSignature s = new ReviewSignature();
+        s.setReviewId(r.getId());
+        s.setIncidentId(inc.getId());
+        s.setOwnerId(owner.getId());
+        s.setStatus(status);
+        s.setSignerName(signerName);
+        s.setSignImage(signImage);
+        s.setRefuseReason(refuseReason);
+        if (evidence != null) s.setRefuseEvidence(new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(evidence).toString());
+        s.setCreatedAt(LocalDateTime.now().minusHours(6));
+        s.setSignedAt(Constants.SignStatus.PENDING.equals(status) ? null : s.getCreatedAt());
+        reviewSignatureRepo.save(s);
+    }
+
+    /** 生成一张演示用证据图片（白底黑字说明），返回 /uploads/xxx.png */
+    private String evidenceImage(String label) {
+        try {
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(480, 240,
+                    java.awt.image.BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g = img.createGraphics();
+            g.setColor(java.awt.Color.WHITE);
+            g.fillRect(0, 0, 480, 240);
+            g.setColor(new java.awt.Color(31, 58, 95));
+            g.setFont(new java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.BOLD, 22));
+            g.drawString("现场核验证据材料", 24, 48);
+            g.setColor(java.awt.Color.BLACK);
+            g.setFont(new java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN, 18));
+            int y = 90;
+            for (String line : label.split("(?<=\\G.{22})")) {
+                g.drawString(line, 24, y);
+                y += 30;
+            }
+            g.setColor(new java.awt.Color(180, 180, 180));
+            g.drawRect(12, 12, 456, 216);
+            g.dispose();
+            File dir = new File(uploadDir).getAbsoluteFile();
+            if (!dir.exists()) dir.mkdirs();
+            String name = "seed-evidence-" + Integer.toHexString(label.hashCode()) + ".png";
+            File f = new File(dir, name);
+            if (!f.exists()) javax.imageio.ImageIO.write(img, "png", f);
+            return "/uploads/" + name;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private RepairOrder order(Incident inc, User owner, User team, int assignDaysAgo, long repairHours,
@@ -436,5 +568,10 @@ public class DataSeeder implements CommandLineRunner {
         rule3.setTitle("无主井盖先行处置与费用回补");
         rule3.setContent("权属无法即时确认的井盖险情，街道先行设置警示锥、临时盖板、夜间反光标识并垫付费用；权属确认后 30 日内由权属单位回补街道垫付费用，复核分摊结果以城管部门费用复核单为准。");
         ruleRepo.save(rule3);
+
+        HandoverRule rule4 = new HandoverRule();
+        rule4.setTitle("权属争议联合现场复核与市级协调");
+        rule4.setContent("燃气、通信、排水等单位均否认井盖归属的，由街道发起联合现场复核，平台汇总井盖编号、地下管线图、最近一次施工许可、历史维修记录；复核结论须各单位代表签字，拒绝签收的须书面说明理由并上传证据。复核仍无法确认的，事件进入市级协调池，维修费用先由市级应急基金垫付；市级协调人员依据各方现场意见及拒签证据研判，可作出强制认领决定，应急基金垫付款按复核结论向责任单位追偿。");
+        ruleRepo.save(rule4);
     }
 }

@@ -38,7 +38,23 @@ public final class Constants {
         public static final String UNCONFIRMED = "UNCONFIRMED"; // 未确认
         public static final String INVESTIGATING = "INVESTIGATING"; // 排查中
         public static final String CONFIRMED = "CONFIRMED";     // 已确认/认领
-        public static final String PENDING = "PENDING";         // 责任待定（街道先行处置）
+        public static final String PENDING = "PENDING";         // 拒绝认领（各单位互相推诿），责任待定
+        public static final String JOINT_REVIEW = "JOINT_REVIEW"; // 联合现场复核中（街道组织各单位现场核验）
+        public static final String CITY_POOL = "CITY_POOL";     // 市级协调池（复核仍无法确认权属）
+    }
+
+    /** 联合现场复核状态 */
+    public static final class ReviewStatus {
+        public static final String IN_PROGRESS = "IN_PROGRESS"; // 已发起，待各单位代表签字
+        public static final String ESCALATED = "ESCALATED";     // 复核仍无法确认，已进入市级协调池
+        public static final String CONFIRMED = "CONFIRMED";     // 复核确认权属（生成权属结论）
+    }
+
+    /** 代表签字状态（每个被邀请单位一条） */
+    public static final class SignStatus {
+        public static final String PENDING = "PENDING";   // 待签收
+        public static final String SIGNED = "SIGNED";     // 已签字认可
+        public static final String REFUSED = "REFUSED";   // 拒绝签收（须说明理由并上传证据）
     }
 
     /** 维修工单状态 */

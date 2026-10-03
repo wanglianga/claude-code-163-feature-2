@@ -109,6 +109,113 @@
           </el-timeline>
         </el-card>
 
+        <!-- 联合现场复核 -->
+        <el-card v-if="d.jointReview" class="page-card">
+          <template #header>
+            <div class="flex-between">
+              <b>联合现场复核（权属互相推诿复核）</b>
+              <el-tag :type="REVIEW_STATUS[d.jointReview.review.status]?.type" size="small">
+                {{ REVIEW_STATUS[d.jointReview.review.status]?.label }}
+              </el-tag>
+            </div>
+          </template>
+
+          <el-alert v-if="d.jointReview.review.status === 'ESCALATED'" type="error" :closable="false" class="mb16"
+                    title="复核仍无法确认权属，事件已进入市级协调池；维修费用由市级应急基金先行垫付，后续按协调结论追偿。" />
+          <el-alert v-if="d.jointReview.review.forcedClaim" type="warning" :closable="false" class="mb16"
+                    :title="`已由市级协调人员${d.jointReview.forcedByName || ''}作出强制认领决定`" />
+
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="发起单位">{{ d.jointReview.initiatorOrg }} · {{ d.jointReview.initiatorName }}</el-descriptions-item>
+            <el-descriptions-item label="计划复核时间">{{ fmtTime(d.jointReview.review.scheduledAt) }}</el-descriptions-item>
+            <el-descriptions-item label="复核地点" :span="2">{{ d.jointReview.review.location || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="井盖编号" :span="2">{{ d.jointReview.review.manholeCode || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="地下管线图" :span="2">
+              <div style="white-space: pre-wrap">{{ d.jointReview.review.pipelineMap || '-' }}</div>
+              <el-image v-for="(u, i) in pipelineImages" :key="i" :src="u" :preview-src-list="pipelineImages"
+                        fit="cover" style="width: 100px; height: 100px; margin: 6px 6px 0 0; border-radius: 4px" />
+            </el-descriptions-item>
+            <el-descriptions-item label="最近一次施工许可" :span="2">
+              <div style="white-space: pre-wrap">{{ d.jointReview.review.latestPermit || '-' }}</div>
+            </el-descriptions-item>
+            <el-descriptions-item label="历史维修记录" :span="2">
+              <div style="white-space: pre-wrap">{{ d.jointReview.review.repairHistory || '-' }}</div>
+            </el-descriptions-item>
+            <el-descriptions-item v-if="d.jointReview.review.note" label="发起说明" :span="2">
+              {{ d.jointReview.review.note }}
+            </el-descriptions-item>
+          </el-descriptions>
+
+          <!-- 代表签字表 -->
+          <div class="mt16"><b>各单位代表签收情况</b>
+            <span class="text-muted">（已签字 {{ d.jointReview.signedCount }} / 拒签 {{ d.jointReview.refusedCount }} / 待签 {{ d.jointReview.pendingCount }}）</span>
+          </div>
+          <el-table :data="d.jointReview.signatures" size="small" class="mt16" border>
+            <el-table-column prop="ownerOrg" label="受邀单位" min-width="150" />
+            <el-table-column label="签收状态" width="110">
+              <template #default="{ row }">
+                <el-tag :type="SIGN_STATUS[row.signature.status]?.type" size="small">
+                  {{ SIGN_STATUS[row.signature.status]?.label }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="代表/理由与证据" min-width="260">
+              <template #default="{ row }">
+                <div v-if="row.signature.status === 'SIGNED'">
+                  代表：{{ row.signature.signerName }} · {{ fmtTime(row.signature.signedAt) }}
+                  <el-image v-if="row.signature.signImage" :src="row.signature.signImage"
+                            :preview-src-list="[row.signature.signImage]" fit="cover"
+                            style="width: 56px; height: 56px; margin-left: 6px; border-radius: 4px; vertical-align: middle" />
+                </div>
+                <div v-else-if="row.signature.status === 'REFUSED'">
+                  <div style="color: #f56c6c">拒签理由：{{ row.signature.refuseReason }}</div>
+                  <el-image v-for="(u, i) in row.evidenceList" :key="i" :src="u"
+                            :preview-src-list="row.evidenceList" fit="cover"
+                            style="width: 56px; height: 56px; margin: 4px 4px 0 0; border-radius: 4px" />
+                </div>
+                <span v-else class="text-muted">待代表到场签字</span>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <!-- 复核结论与费用分摊建议 -->
+          <template v-if="d.jointReview.review.conclusion">
+            <el-divider content-position="left">复核结论与费用分摊建议</el-divider>
+            <el-descriptions :column="1" border>
+              <el-descriptions-item label="权属结论">
+                <el-tag v-if="d.jointReview.review.conclusion === 'CONFIRMED'" type="success" size="small">
+                  确认权属：{{ d.jointReview.confirmedOwnerOrg }}
+                  <span v-if="d.jointReview.review.forcedClaim">（市级强制认领）</span>
+                </el-tag>
+                <el-tag v-else type="danger" size="small">仍无法确认，已上报市级协调池</el-tag>
+                <span class="text-muted" style="margin-left: 8px">{{ fmtTime(d.jointReview.review.finishedAt) }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="d.jointReview.review.conclusionNote" label="结论说明">
+                {{ d.jointReview.review.conclusionNote }}
+              </el-descriptions-item>
+              <el-descriptions-item v-if="d.jointReview.review.forcedClaim" label="强制认领说明">
+                {{ d.jointReview.review.forcedNote || '市级协调人员依据各方现场复核意见及拒签证据研判决定。' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="费用分摊建议">
+                <el-table :data="d.jointReview.costSuggestionList" size="small" border>
+                  <el-table-column prop="party" label="承担方" min-width="200" />
+                  <el-table-column label="比例" width="90">
+                    <template #default="{ row }">{{ row.ratio }}%</template>
+                  </el-table-column>
+                  <el-table-column prop="reason" label="依据" min-width="240" />
+                </el-table>
+              </el-descriptions-item>
+            </el-descriptions>
+          </template>
+
+          <!-- 应急基金垫付 -->
+          <div v-if="d.jointReview.review.fundAdvanceAmount" class="mt16">
+            <el-tag type="danger" effect="dark">市级应急基金已垫付 {{ money(d.jointReview.review.fundAdvanceAmount) }}</el-tag>
+            <span class="text-muted" style="margin-left: 8px">{{ fmtTime(d.jointReview.review.fundAdvanceAt) }}</span>
+            <div v-if="d.jointReview.review.fundAdvanceNote" class="text-muted">{{ d.jointReview.review.fundAdvanceNote }}</div>
+          </div>
+        </el-card>
+
         <!-- 维修工单 -->
         <el-card v-if="d.repairOrder" class="page-card">
           <template #header><b>维修工单</b></template>
@@ -298,6 +405,61 @@
             </el-button>
           </div>
 
+          <!-- 街道：发起联合现场复核 -->
+          <div v-if="actions.includes('initiateReview')">
+            <el-divider content-position="left">联合现场复核（多单位推诿）</el-divider>
+            <el-alert type="error" :closable="false" class="mb16"
+                      title="燃气、通信、排水等单位均否认归属时，可发起联合现场复核；平台将汇总井盖编号、地下管线图、施工许可与维修记录。" />
+            <el-button type="danger" style="width: 100%" @click="openInitiate">
+              发起联合现场复核
+            </el-button>
+          </div>
+
+          <!-- 街道/市级：复核进行中操作 -->
+          <div v-if="actions.includes('finishReview')">
+            <el-divider content-position="left">联合复核结论</el-divider>
+            <el-alert type="warning" :closable="false" class="mb16"
+                      :title="`签字进展：已签字 ${d.jointReview.signedCount} / 拒签 ${d.jointReview.refusedCount} / 待签 ${d.jointReview.pendingCount}；全部签字后方可确认权属。`" />
+            <el-button type="primary" class="mb16" style="width: 100%" @click="openFinish('CONFIRMED')">
+              生成权属结论与费用分摊建议（全部已签字）
+            </el-button>
+            <el-button type="danger" plain style="width: 100%" @click="openFinish('UNRESOLVED')">
+              仍无法确认，上报市级协调池
+            </el-button>
+          </div>
+
+          <!-- 权属单位代表：签字 / 拒签 -->
+          <div v-if="actions.includes('reviewSign')">
+            <el-divider content-position="left">联合现场复核签收</el-divider>
+            <el-alert type="warning" :closable="false" class="mb16"
+                      title="请派代表参加现场复核；认可结论请代表签字，拒绝签收须说明理由并上传证据。" />
+            <el-button type="primary" class="mb16" style="width: 100%" @click="openSign">
+              代表签字
+            </el-button>
+            <el-button type="danger" plain style="width: 100%" @click="openRefuse">
+              拒绝签收（填写理由并上传证据）
+            </el-button>
+          </div>
+
+          <!-- 市级协调：应急基金垫付 / 强制认领 -->
+          <template v-if="d.jointReview?.review.status === 'ESCALATED' && role === 'ADMIN'">
+            <div>
+              <el-divider content-position="left">市级应急基金垫付（可多次登记，自动累计）</el-divider>
+              <el-button type="warning" style="width: 100%" @click="openFund">
+                登记应急基金垫付
+              </el-button>
+            </div>
+            <div>
+              <el-divider content-position="left">市级强制认领</el-divider>
+              <el-alert type="error" :closable="false" class="mb16"
+                        title="须有拒签单位提交的书面理由与证据，经研判后才能作出强制认领决定。" />
+              <el-button type="danger" style="width: 100%"
+                         :disabled="!d.jointReview.refusedCount" @click="openForce">
+                研判并强制认领
+              </el-button>
+            </div>
+          </template>
+
           <!-- 权属单位：派单 -->
           <div v-if="actions.includes('assign')">
             <el-divider content-position="left">派发维修工单</el-divider>
@@ -378,6 +540,184 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- 发起联合现场复核 -->
+    <el-dialog v-model="initiateVisible" title="发起联合现场复核" width="640px">
+      <el-form label-width="130px">
+        <el-form-item label="参会权属单位" required>
+          <el-select v-model="initiateForm.ownerIds" multiple placeholder="选择否认归属/需到场的单位" style="width: 100%">
+            <el-option v-for="o in meta.ownerUnits || []" :key="o.id" :value="o.id" :label="o.orgName" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="井盖编号">
+          <el-input v-model="initiateForm.manholeCode" placeholder="井圈铸字编号/设施编号" />
+        </el-form-item>
+        <el-form-item label="地下管线图">
+          <el-input v-model="initiateForm.pipelineMap" type="textarea" :rows="2"
+                    placeholder="管线图号/管线走向说明，可附图" />
+          <el-upload :show-file-list="false" :http-request="(opt) => uploadTo(opt, initiateForm.pipelineImages)"
+                     accept="image/*">
+            <el-button size="small">上传管线图</el-button>
+          </el-upload>
+          <el-image v-for="(u, i) in initiateForm.pipelineImages" :key="i" :src="u"
+                    :preview-src-list="initiateForm.pipelineImages" fit="cover"
+                    style="width: 64px; height: 64px; margin: 6px 6px 0 0; border-radius: 4px" />
+        </el-form-item>
+        <el-form-item label="最近施工许可">
+          <el-input v-model="initiateForm.latestPermit" type="textarea" :rows="2"
+                    placeholder="许可编号、施工单位、许可时间" />
+        </el-form-item>
+        <el-form-item label="历史维修记录">
+          <el-input v-model="initiateForm.repairHistory" type="textarea" :rows="2"
+                    placeholder="历史维修工单/承办单位" />
+        </el-form-item>
+        <el-form-item label="计划复核时间">
+          <el-date-picker v-model="initiateForm.scheduledAt" type="datetime" value-format="YYYY-MM-DD HH:mm"
+                          placeholder="选择现场复核时间" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="复核地点">
+          <el-input v-model="initiateForm.location" :placeholder="inc.value.address" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="initiateForm.note" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="initiateVisible = false">取消</el-button>
+        <el-button type="danger" :loading="acting" @click="doInitiate">发起复核</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 代表签字 -->
+    <el-dialog v-model="signVisible" title="单位代表签字" width="480px">
+      <el-form label-width="100px">
+        <el-form-item label="代表姓名" required>
+          <el-input v-model="signForm.signerName" placeholder="现场代表姓名" />
+        </el-form-item>
+        <el-form-item label="签字照片">
+          <el-upload :show-file-list="false" :http-request="(opt) => uploadTo(opt, signImages)" accept="image/*">
+            <el-button size="small">上传签字/现场照片（可选）</el-button>
+          </el-upload>
+          <el-image v-if="signForm.signImage" :src="signForm.signImage" :preview-src-list="[signForm.signImage]"
+                    fit="cover" style="width: 90px; height: 90px; margin-top: 6px; border-radius: 4px" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="signForm.note" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="signVisible = false">取消</el-button>
+        <el-button type="primary" :loading="acting" @click="doSign">确认签字</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 拒绝签收 -->
+    <el-dialog v-model="refuseVisible" title="拒绝签收（须说明理由并上传证据）" width="520px">
+      <el-alert type="error" :closable="false" class="mb16"
+                title="拒签材料将提交市级协调人员，作为是否强制认领的研判依据。" />
+      <el-form label-width="100px">
+        <el-form-item label="拒签理由" required>
+          <el-input v-model="refuseForm.reason" type="textarea" :rows="3"
+                    placeholder="请书面说明不属于本单位的理由" />
+        </el-form-item>
+        <el-form-item label="证据材料" required>
+          <el-upload :show-file-list="false" :http-request="(opt) => uploadTo(opt, refuseImages)" accept="image/*">
+            <el-button size="small">上传图纸/现场照片等证据</el-button>
+          </el-upload>
+          <el-image v-for="(u, i) in refuseImages" :key="i" :src="u" :preview-src-list="refuseImages"
+                    fit="cover" style="width: 64px; height: 64px; margin: 6px 6px 0 0; border-radius: 4px" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="refuseForm.note" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="refuseVisible = false">取消</el-button>
+        <el-button type="danger" :loading="acting" @click="doRefuse">提交拒签</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 结束复核：生成结论 -->
+    <el-dialog v-model="finishVisible" :title="finishForm.conclusion === 'CONFIRMED' ? '生成权属结论' : '上报市级协调池'"
+               width="560px">
+      <el-form label-width="120px">
+        <template v-if="finishForm.conclusion === 'CONFIRMED'">
+          <el-alert type="success" :closable="false" class="mb16" title="各单位代表均已签字，形成确认权属结论。" />
+          <el-form-item label="权属单位" required>
+            <el-select v-model="finishForm.confirmedOwnerId" style="width: 100%"
+                       placeholder="仅限参加现场复核的单位">
+              <el-option v-for="s in attendedOwners" :key="s.ownerId" :value="s.ownerId" :label="s.ownerOrg" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="费用分摊建议">
+            <el-alert type="info" :closable="false" class="mb16"
+                      title="默认由确认权属单位承担 100%；多方分摊可调整比例（合计须 100%）。" />
+            <div v-for="(a, i) in finishForm.costSuggestion" :key="i">
+              <div style="display: flex; gap: 6px; margin-bottom: 6px; align-items: center">
+                <el-input v-model="a.party" placeholder="承担方" style="flex: 2" />
+                <el-input-number v-model="a.ratio" :min="0" :max="100" style="flex: 1" />
+                <span>%</span>
+                <el-button text type="danger" @click="finishForm.costSuggestion.splice(i, 1)">删</el-button>
+              </div>
+              <el-input v-model="a.reason" placeholder="分摊依据" class="mb16" />
+            </div>
+            <el-button size="small" @click="finishForm.costSuggestion.push({ party: '', ratio: 0, reason: '' })">
+              + 添加承担方
+            </el-button>
+          </el-form-item>
+        </template>
+        <template v-else>
+          <el-alert type="error" :closable="false" class="mb16"
+                    title="复核仍无法确认权属，事件将进入市级协调池，维修费用先由市级应急基金垫付，后续追偿。" />
+        </template>
+        <el-form-item label="结论说明">
+          <el-input v-model="finishForm.conclusionNote" type="textarea" :rows="3"
+                    placeholder="现场核验情况、各单位意见、结论依据" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="finishVisible = false">取消</el-button>
+        <el-button :type="finishForm.conclusion === 'CONFIRMED' ? 'primary' : 'danger'"
+                   :loading="acting" @click="doFinish">提交</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 应急基金垫付 -->
+    <el-dialog v-model="fundVisible" title="市级应急基金垫付" width="460px">
+      <el-form label-width="100px">
+        <el-form-item label="垫付金额" required>
+          <el-input-number v-model="fundForm.amount" :min="0.01" :precision="2" />
+          <span class="text-muted" style="margin-left: 6px">元</span>
+        </el-form-item>
+        <el-form-item label="说明">
+          <el-input v-model="fundForm.note" type="textarea" :rows="3" placeholder="垫付项目明细，待责任认定后追偿" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="fundVisible = false">取消</el-button>
+        <el-button type="warning" :loading="acting" @click="doFund">确认垫付</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 市级强制认领 -->
+    <el-dialog v-model="forceVisible" title="市级强制认领研判" width="500px">
+      <el-alert type="error" :closable="false" class="mb16"
+                title="依据各单位现场复核意见及拒签理由、证据研判后，指定责任权属单位；应急基金垫付款按结论向其追偿。" />
+      <el-form label-width="100px">
+        <el-form-item label="责任单位" required>
+          <el-select v-model="forceForm.ownerId" style="width: 100%">
+            <el-option v-for="o in meta.ownerUnits || []" :key="o.id" :value="o.id" :label="o.orgName" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="研判说明">
+          <el-input v-model="forceForm.note" type="textarea" :rows="3" placeholder="采信/排除各方证据的理由" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="forceVisible = false">取消</el-button>
+        <el-button type="danger" :loading="acting" @click="doForce">作出强制认领决定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -388,11 +728,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../store/auth'
 import {
   apiIncidentDetail, apiMeta, apiDispatch, apiSecure, apiInvestigate, apiClaim,
-  apiCreateOrder, apiAcceptOrder, apiAcceptance, apiCostReview
+  apiCreateOrder, apiAcceptOrder, apiAcceptance, apiCostReview, apiUpload,
+  apiReviewInitiate, apiReviewSign, apiReviewRefuse, apiReviewFinish,
+  apiFundAdvance, apiForceClaim
 } from '../api'
 import {
   INCIDENT_STATUS, EMERGENCY_STATUS, OWNER_STATUS, REPAIR_STATUS, COMP_STATUS,
-  COST_STATUS, RESPONSIBILITY, dangerType, fmtTime, money
+  COST_STATUS, REVIEW_STATUS, SIGN_STATUS, RESPONSIBILITY, dangerType, fmtTime, money
 } from '../utils/format'
 
 const route = useRoute()
@@ -414,22 +756,161 @@ const accForm = reactive({
 })
 const costForm = reactive({ allocations: [], reviewNote: '' })
 
+// ---------- 联合现场复核 ----------
+const initiateVisible = ref(false)
+const signVisible = ref(false)
+const refuseVisible = ref(false)
+const finishVisible = ref(false)
+const fundVisible = ref(false)
+const forceVisible = ref(false)
+
+const initiateForm = reactive({
+  ownerIds: [], manholeCode: '', pipelineMap: '', pipelineImages: [],
+  latestPermit: '', repairHistory: '', scheduledAt: '', location: '', note: ''
+})
+const signForm = reactive({ signerName: '', signImage: '', note: '' })
+const signImages = ref([])
+const refuseForm = reactive({ reason: '', note: '' })
+const refuseImages = ref([])
+const finishForm = reactive({
+  conclusion: 'CONFIRMED', confirmedOwnerId: null,
+  costSuggestion: [], conclusionNote: ''
+})
+const fundForm = reactive({ amount: null, note: '' })
+const forceForm = reactive({ ownerId: null, note: '' })
+
+const jr = computed(() => d.value?.jointReview)
+const attendedOwners = computed(() =>
+  (jr.value?.signatures || []).map(s => ({ ownerId: s.signature.ownerId, ownerOrg: s.ownerOrg })))
+
+const pipelineImages = computed(() => {
+  const text = jr.value?.review?.pipelineMap || ''
+  const urls = text.match(/\/uploads\/[\w.-]+/g)
+  return urls ? [...new Set(urls)] : []
+})
+
+async function uploadTo({ file }, target) {
+  const url = await apiUpload(file)
+  if (Array.isArray(target)) target.push(url)
+  else if (typeof target === 'function') target(url)
+}
+
+function openInitiate() {
+  Object.assign(initiateForm, {
+    ownerIds: (meta.value.ownerUnits || []).map(o => o.id),
+    manholeCode: '', pipelineMap: '', pipelineImages: [],
+    latestPermit: '', repairHistory: '', scheduledAt: '', location: inc.value.address || '', note: ''
+  })
+  initiateVisible.value = true
+}
+
+function openSign() {
+  Object.assign(signForm, { signerName: auth.user?.name || '', signImage: '', note: '' })
+  signImages.value = []
+  signVisible.value = true
+}
+
+function openRefuse() {
+  Object.assign(refuseForm, { reason: '', note: '' })
+  refuseImages.value = []
+  refuseVisible.value = true
+}
+
+function openFinish(conclusion) {
+  finishForm.conclusion = conclusion
+  finishForm.confirmedOwnerId = null
+  finishForm.conclusionNote = ''
+  finishForm.costSuggestion = conclusion === 'CONFIRMED'
+    ? [{ party: '', ratio: 100, reason: '联合现场复核确认权属，各单位代表已签字' }]
+    : []
+  finishVisible.value = true
+}
+
+function openFund() {
+  Object.assign(fundForm, { amount: null, note: '' })
+  fundVisible.value = true
+}
+
+function openForce() {
+  Object.assign(forceForm, { ownerId: null, note: '' })
+  forceVisible.value = true
+}
+
+const doInitiate = () => {
+  if (!initiateForm.ownerIds.length) return ElMessage.warning('请选择参会权属单位')
+  const mapText = [initiateForm.pipelineMap, ...initiateForm.pipelineImages].filter(Boolean).join('\n')
+  run(() => apiReviewInitiate(id, { ...initiateForm, pipelineMap: mapText }), '联合现场复核已发起，已通知各单位派代表参加')
+    .then(() => { initiateVisible.value = false })
+}
+const doSign = () => {
+  if (!signForm.signerName.trim()) return ElMessage.warning('请填写代表姓名')
+  run(() => apiReviewSign(id, { ...signForm, signImage: signImages.value[0] || '' }), '代表已签字')
+    .then(() => { signVisible.value = false })
+}
+const doRefuse = () => {
+  if (!refuseForm.reason.trim()) return ElMessage.warning('请填写拒签理由')
+  if (!refuseImages.value.length) return ElMessage.warning('请上传证据材料')
+  run(() => apiReviewRefuse(id, { ...refuseForm, evidence: refuseImages.value }), '拒签理由与证据已提交')
+    .then(() => { refuseVisible.value = false })
+}
+const doFinish = () => {
+  if (finishForm.conclusion === 'CONFIRMED') {
+    if (!finishForm.confirmedOwnerId) return ElMessage.warning('请选择确认的权属单位')
+    const ratioSum = finishForm.costSuggestion.reduce((s, a) => s + Number(a.ratio || 0), 0)
+    if (ratioSum !== 100) return ElMessage.warning(`分摊比例合计 ${ratioSum}%，须为 100%`)
+    const org = attendedOwners.value.find(o => o.ownerId === finishForm.confirmedOwnerId)?.ownerOrg || ''
+    finishForm.costSuggestion.forEach(a => { if (!a.party) a.party = `权属单位-${org}` })
+  }
+  run(() => apiReviewFinish(id, finishForm),
+      finishForm.conclusion === 'CONFIRMED' ? '权属结论与费用分摊建议已生成' : '事件已进入市级协调池')
+    .then(() => { finishVisible.value = false })
+}
+const doFund = () => {
+  if (!fundForm.amount || fundForm.amount <= 0) return ElMessage.warning('请填写垫付金额')
+  run(() => apiFundAdvance(id, fundForm), '应急基金垫付已登记').then(() => { fundVisible.value = false })
+}
+const doForce = () => {
+  if (!forceForm.ownerId) return ElMessage.warning('请选择责任权属单位')
+  return ElMessageBox.confirm('强制认领决定作出后将通知责任单位并据此追偿应急基金垫付款，确认？',
+      '市级强制认领', { type: 'warning' })
+    .then(() => run(() => apiForceClaim(id, forceForm), '已作出强制认领决定')
+      .then(() => { forceVisible.value = false }))
+    .catch(() => {})
+}
+
 const role = computed(() => auth.role)
 const inc = computed(() => d.value?.incident || {})
 
 const actions = computed(() => {
   if (!d.value) return []
   const i = inc.value
+  const jr = d.value.jointReview
   const list = []
   if (['STREET_DUTY', 'ADMIN'].includes(role.value)) {
     if (i.emergencyStatus === 'PENDING') list.push('dispatch')
     if (i.emergencyStatus !== 'SECURED') list.push('secure')
-    if (['INVESTIGATING', 'PENDING'].includes(i.ownerStatus)) list.push('investigate')
+    if (['INVESTIGATING', 'PENDING'].includes(i.ownerStatus) && !jr) list.push('investigate')
   }
   if (role.value === 'OWNER_UNIT') {
-    if (i.ownerStatus !== 'CONFIRMED') list.push('claim')
+    // 联合复核中的签收由复核流程承接，不再显示普通认领
+    if (i.ownerStatus !== 'CONFIRMED' && !jr) list.push('claim')
     if (i.ownerStatus === 'CONFIRMED' && i.ownerId === auth.user.id && !d.value.repairOrder
         && i.status === 'OWNER_CONFIRMED') list.push('assign')
+  }
+  // 联合复核相关操作
+  if (jr) {
+    if (['STREET_DUTY', 'ADMIN'].includes(role.value) && jr.review.status === 'IN_PROGRESS') {
+      list.push('finishReview')
+    }
+    if (role.value === 'OWNER_UNIT' && jr.review.status === 'IN_PROGRESS') {
+      const mine = (jr.signatures || []).find(s => s.mine)
+      if (mine && mine.signature.status !== 'SIGNED') list.push('reviewSign')
+    }
+  }
+  if (['STREET_DUTY', 'ADMIN'].includes(role.value)
+      && i.emergencyStatus === 'SECURED'
+      && ['INVESTIGATING', 'PENDING'].includes(i.ownerStatus) && !jr) {
+    list.push('initiateReview')
   }
   if (role.value === 'REPAIR_TEAM' && d.value.repairOrder
       && ['ASSIGNED', 'RETURNED'].includes(d.value.repairOrder.status)
@@ -460,6 +941,20 @@ const timeline = computed(() => {
   t.push({ label: inv ? `权属排查：${inv.investigation.conclusion === 'CONFIRMED' ? '确认权属' : '责任待定'}` : '权属排查', time: inv ? fmtTime(inv.investigation.createdAt) : '待排查', done: !!inv, type: inv ? 'primary' : 'info' })
   const cl = d.value.claims?.[0]
   t.push({ label: cl ? `权属确认：${cl.ownerOrg}（${cl.claim.claimType}）` : '权属确认', time: cl ? fmtTime(cl.claim.createdAt) : '待确认', done: !!cl, type: cl ? 'success' : 'info' })
+  const jrv = d.value.jointReview?.review
+  if (jrv) {
+    t.push({ label: '街道发起联合现场复核（多单位推诿）', time: fmtTime(jrv.createdAt), done: true, type: 'warning' })
+    if (jrv.status === 'ESCALATED') {
+      t.push({ label: '复核无法确认 → 进入市级协调池', time: fmtTime(jrv.escalatedAt), done: true, type: 'danger' })
+      if (jrv.fundAdvanceAmount) t.push({ label: `市级应急基金垫付 ${money(jrv.fundAdvanceAmount)}`, time: fmtTime(jrv.fundAdvanceAt), done: true, type: 'danger' })
+    } else if (jrv.status === 'CONFIRMED') {
+      t.push({ label: jrv.forcedClaim ? '市级强制认领确认权属' : '联合复核确认权属（代表签字齐全）',
+        time: fmtTime(jrv.finishedAt), done: true, type: 'success' })
+    } else {
+      t.push({ label: `复核进行中（签字 ${d.value.jointReview.signedCount}/拒签 ${d.value.jointReview.refusedCount}/待签 ${d.value.jointReview.pendingCount}）`,
+        time: '待结论', done: false, type: 'warning' })
+    }
+  }
   t.push({ label: o ? `派发维修工单（${d.value.repairTeamName}）` : '派发维修工单', time: o ? fmtTime(o.assignedAt) : '待派单', done: !!o, type: o ? 'primary' : 'info' })
   t.push({ label: '维修完成', time: o?.finishedAt ? fmtTime(o.finishedAt) : '待维修', done: !!o?.finishedAt, type: o?.finishedAt ? 'primary' : 'info' })
   const acc = d.value.acceptances?.find(a => a.acceptance.result === 'PASSED')

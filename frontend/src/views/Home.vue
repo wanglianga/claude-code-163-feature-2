@@ -100,12 +100,14 @@ const cards = computed(() => {
       return [
         { label: '待应急处置', value: list.filter(i => i.emergencyStatus !== 'SECURED').length, color: '#f56c6c', to: '/workbench' },
         { label: '权属排查中', value: list.filter(i => i.ownerStatus === 'INVESTIGATING').length, color: '#e6a23c' },
-        { label: '责任待定', value: list.filter(i => i.ownerStatus === 'PENDING').length, color: '#f56c6c' },
+        { label: '联合复核', value: list.filter(i => i.ownerStatus === 'JOINT_REVIEW').length, color: '#e6a23c', to: '/joint-reviews' },
+        { label: '市级协调池', value: list.filter(i => i.ownerStatus === 'CITY_POOL').length, color: '#f56c6c', to: '/joint-reviews' },
         { label: '全部事件', value: list.length }
       ]
     case 'OWNER_UNIT':
       return [
-        { label: '待认领', value: list.filter(i => i.ownerStatus !== 'CONFIRMED').length, color: '#f56c6c', to: '/workbench' },
+        { label: '待认领', value: list.filter(i => !['CONFIRMED', 'JOINT_REVIEW', 'CITY_POOL'].includes(i.ownerStatus)).length, color: '#f56c6c', to: '/workbench' },
+        { label: '联合复核', value: list.filter(i => ['JOINT_REVIEW', 'CITY_POOL'].includes(i.ownerStatus)).length, color: '#e6a23c', to: '/joint-reviews' },
         { label: '我单位事件', value: list.filter(i => i.ownerStatus === 'CONFIRMED').length, color: '#409eff' },
         { label: '待派单', value: list.filter(i => i.status === 'OWNER_CONFIRMED').length, color: '#e6a23c' }
       ]
@@ -131,7 +133,8 @@ const cards = computed(() => {
       return [
         { label: '全部事件', value: list.length, to: '/stats' },
         { label: '待应急处置', value: list.filter(i => i.emergencyStatus !== 'SECURED').length, color: '#f56c6c' },
-        { label: '责任待定', value: list.filter(i => i.ownerStatus === 'PENDING').length, color: '#f56c6c' },
+        { label: '联合复核', value: list.filter(i => i.ownerStatus === 'JOINT_REVIEW').length, color: '#e6a23c', to: '/joint-reviews' },
+        { label: '市级协调池', value: list.filter(i => i.ownerStatus === 'CITY_POOL').length, color: '#f56c6c', to: '/joint-reviews' },
         { label: '待费用复核', value: costs.value.filter(c => c.status === 'PENDING').length, color: '#e6a23c', to: '/cost' },
         { label: '已结案', value: list.filter(i => i.status === 'CLOSED').length, color: '#67c23a' }
       ]
@@ -154,7 +157,8 @@ const todos = computed(() => {
   const list = incidents.value
   switch (role.value) {
     case 'STREET_DUTY':
-      return list.filter(i => i.emergencyStatus !== 'SECURED' || ['INVESTIGATING', 'PENDING'].includes(i.ownerStatus)).slice(0, 10)
+      return list.filter(i => i.emergencyStatus !== 'SECURED'
+        || ['INVESTIGATING', 'PENDING', 'JOINT_REVIEW', 'CITY_POOL'].includes(i.ownerStatus)).slice(0, 10)
     case 'OWNER_UNIT':
       return list.filter(i => i.ownerStatus !== 'CONFIRMED' || i.status === 'OWNER_CONFIRMED').slice(0, 10)
     case 'INSPECTOR':

@@ -81,6 +81,10 @@ public class Incident {
     @Column(nullable = false)
     private Boolean everPending = false;
 
+    /** 是否曾进入市级协调池（用于权属争议统计） */
+    @Column(nullable = false)
+    private Boolean everCityPool = false;
+
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();
     private LocalDateTime closedAt;

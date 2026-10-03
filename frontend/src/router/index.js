@@ -11,6 +11,7 @@ const routes = [
       { path: 'report', component: () => import('../views/Report.vue'), meta: { roles: ['CITIZEN'] } },
       { path: 'incidents/:id', component: () => import('../views/IncidentDetail.vue') },
       { path: 'workbench', component: () => import('../views/Workbench.vue') },
+      { path: 'joint-reviews', component: () => import('../views/JointReviews.vue'), meta: { roles: ['STREET_DUTY', 'OWNER_UNIT', 'ADMIN'] } },
       { path: 'compensation', component: () => import('../views/Compensation.vue'), meta: { roles: ['COMPENSATOR', 'ADMIN'] } },
       { path: 'cost', component: () => import('../views/Cost.vue'), meta: { roles: ['ADMIN', 'STREET_DUTY'] } },
       { path: 'stats', component: () => import('../views/Stats.vue'), meta: { roles: ['ADMIN', 'STREET_DUTY', 'INSPECTOR', 'COMPENSATOR'] } },

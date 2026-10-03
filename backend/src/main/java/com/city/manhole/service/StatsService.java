@@ -54,7 +54,13 @@ public class StatsService {
         long pendingEmergency = all.stream()
                 .filter(i -> !Constants.EmergencyStatus.SECURED.equals(i.getEmergencyStatus())).count();
         long pendingOwner = all.stream()
-                .filter(i -> Constants.OwnerStatus.PENDING.equals(i.getOwnerStatus())).count();
+                .filter(i -> Constants.OwnerStatus.PENDING.equals(i.getOwnerStatus())
+                        || Constants.OwnerStatus.JOINT_REVIEW.equals(i.getOwnerStatus())
+                        || Constants.OwnerStatus.CITY_POOL.equals(i.getOwnerStatus())).count();
+        long jointReviewing = all.stream()
+                .filter(i -> Constants.OwnerStatus.JOINT_REVIEW.equals(i.getOwnerStatus())).count();
+        long cityPool = all.stream()
+                .filter(i -> Constants.OwnerStatus.CITY_POOL.equals(i.getOwnerStatus())).count();
 
         List<RepairOrder> orders = repairOrderRepo.findAll();
         long timeoutOrders = orders.stream().filter(this::isTimeout).count();
@@ -72,6 +78,8 @@ public class StatsService {
         m.put("byDanger", byDanger);
         m.put("pendingEmergency", pendingEmergency);
         m.put("pendingOwner", pendingOwner);
+        m.put("jointReviewing", jointReviewing);
+        m.put("cityPool", cityPool);
         m.put("timeoutOrders", timeoutOrders);
         m.put("totalOrders", orders.size());
         m.put("totalCompensation", totalComp);
@@ -125,11 +133,14 @@ public class StatsService {
         }
         rows.sort((a, b) -> Long.compare((Long) b.get("disputed"), (Long) a.get("disputed")));
         long stillPending = all.stream()
-                .filter(i -> Constants.OwnerStatus.PENDING.equals(i.getOwnerStatus())).count();
+                .filter(i -> Constants.OwnerStatus.PENDING.equals(i.getOwnerStatus())
+                        || Constants.OwnerStatus.JOINT_REVIEW.equals(i.getOwnerStatus())
+                        || Constants.OwnerStatus.CITY_POOL.equals(i.getOwnerStatus())).count();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("byOwner", rows);
         result.put("stillPending", stillPending);
-        result.put("totalEverPending", all.stream().filter(Incident::getEverPending).count());
+        result.put("totalEverPending", all.stream()
+                .filter(i -> i.getEverPending() || i.getEverCityPool()).count());
         return result;
     }
 

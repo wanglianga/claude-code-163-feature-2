@@ -39,6 +39,10 @@ public class OwnershipService {
         if (Constants.OwnerStatus.CONFIRMED.equals(inc.getOwnerStatus())) {
             throw new BizException("权属已确认，无需再排查");
         }
+        if (Constants.OwnerStatus.JOINT_REVIEW.equals(inc.getOwnerStatus())
+                || Constants.OwnerStatus.CITY_POOL.equals(inc.getOwnerStatus())) {
+            throw new BizException("事件已进入联合复核/市级协调流程，不能再提交普通排查结论");
+        }
         if (!Constants.OwnerStatus.INVESTIGATING.equals(inc.getOwnerStatus())
                 && !Constants.OwnerStatus.PENDING.equals(inc.getOwnerStatus())) {
             throw new BizException("请先完成应急围护再开展权属排查");
@@ -89,6 +93,12 @@ public class OwnershipService {
         Incident inc = incidentService.getOrThrow(incidentId);
         if (Constants.OwnerStatus.CONFIRMED.equals(inc.getOwnerStatus())) {
             throw new BizException("该事件权属已确认");
+        }
+        if (Constants.OwnerStatus.JOINT_REVIEW.equals(inc.getOwnerStatus())) {
+            throw new BizException("该事件正在联合现场复核，请由代表在复核单上签字确认");
+        }
+        if (Constants.OwnerStatus.CITY_POOL.equals(inc.getOwnerStatus())) {
+            throw new BizException("该事件已进入市级协调池，权属由市级协调人员研判决定");
         }
         return confirmOwner(inc, me, "主动认领", note);
     }

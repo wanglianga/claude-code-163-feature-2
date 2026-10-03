@@ -176,12 +176,15 @@ const tabs = computed(() => {
       return [
         { label: '待应急处置', list: list.filter(i => i.emergencyStatus !== 'SECURED') },
         { label: '待权属排查', list: list.filter(i => i.ownerStatus === 'INVESTIGATING') },
+        { label: '联合复核', list: list.filter(i => i.ownerStatus === 'JOINT_REVIEW') },
+        { label: '市级协调池', list: list.filter(i => i.ownerStatus === 'CITY_POOL') },
         { label: '责任待定', list: list.filter(i => i.ownerStatus === 'PENDING') },
         { label: '全部', list }
       ]
     case 'OWNER_UNIT':
       return [
-        { label: '待认领', list: list.filter(i => i.ownerStatus !== 'CONFIRMED') },
+        { label: '待认领', list: list.filter(i => !['CONFIRMED', 'JOINT_REVIEW', 'CITY_POOL'].includes(i.ownerStatus)) },
+        { label: '联合复核', list: list.filter(i => ['JOINT_REVIEW', 'CITY_POOL'].includes(i.ownerStatus)) },
         { label: '待派单', list: list.filter(i => i.status === 'OWNER_CONFIRMED') },
         { label: '维修中', list: list.filter(i => ['REPAIRING', 'REPAIRED'].includes(i.status)) },
         { label: '全部', list }
